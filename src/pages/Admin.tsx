@@ -16,7 +16,9 @@ import {
   getAccessoireNameById,
   getArmes,
   getArmures,
-  getAccessoires
+  getAccessoires,
+  getRoleById,
+  getColorRoleById
 } from "@/api/db";
 
 interface Player {
@@ -31,6 +33,9 @@ interface Player {
   armeName?: string;
   armureName?: string;
   accessoireName?: string;
+  idRole?: string;
+  roleName?: string;
+  roleColor?: string;
 }
 
 const Admin = () => {
@@ -73,7 +78,9 @@ const Admin = () => {
         ...p,
         armeName: p.idArme ? await getArmeNameById(p.idArme) : "Aucune",
         armureName: p.idArmure ? await getArmureNameById(p.idArmure) : "Aucune",
-        accessoireName: p.idAccesoires ? await getAccessoireNameById(p.idAccesoires) : "Aucun"
+        accessoireName: p.idAccesoires ? await getAccessoireNameById(p.idAccesoires) : "Aucun",
+        roleName: p.idRole ? await getRoleById(p.idRole) : "Aucun",
+        roleColor: p.idRole ? await getColorRoleById(p.idRole) : "#9CA3AF"
       }))
     );
 
@@ -138,7 +145,8 @@ const Admin = () => {
             has_looted_accessoires: false,
             idArme: null,
             idArmure: null,
-            idAccesoires: null
+            idAccesoires: null,
+            idRole: null
           })
         )
       );
@@ -221,7 +229,19 @@ const Admin = () => {
                 <div className="p-2 rounded-lg bg-gradient-primary">
                   <UserCog className="h-5 w-5 text-primary-foreground" />
                 </div>
-                <CardTitle>{player.name}</CardTitle>
+                <CardTitle>
+                  <div className="flex items-center gap-2">
+                    {player.name} - 
+                    {player.roleName && (
+                      <span
+                        className="px-4 py-1 mt-1 rounded-full text-xs font-medium text-white"
+                        style={{ backgroundColor: player.roleColor }}
+                      >
+                        {player.roleName}
+                      </span>
+                    )}
+                  </div>
+                </CardTitle>
               </div>
               <CardDescription>Choix actuels</CardDescription>
             </CardHeader>

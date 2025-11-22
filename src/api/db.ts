@@ -99,4 +99,26 @@ export async function getAccessoireNameById(id: string) {
   return data?.name || null;
 }
 
+export async function getRoleById(id: string){
+  const { data, error } = await supabase
+    .from("role")
+    .select("name")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.name || null;
+}
+
+export async function getColorRoleById(id: string){
+  const { data, error } = await supabase
+    .from("role")
+    .select("color")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.color || null;
+}
+
 
