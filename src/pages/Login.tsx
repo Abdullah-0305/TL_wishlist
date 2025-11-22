@@ -8,6 +8,7 @@ import { Shield } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import bcrypt from "bcryptjs";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -34,7 +35,8 @@ const Login = () => {
     }
 
     // Vérifie le mot de passe côté JS
-    if (data.mdp !== password) {
+    const valid = await bcrypt.compare(password, data.mdp);
+    if (!valid) {
       toast.error("Pseudo ou mot de passe incorrect");
       return;
     }
@@ -42,7 +44,13 @@ const Login = () => {
     // Connexion réussie
     login(data.name, data.isAdmin);
     toast.success("Connexion réussie !");
-    navigate("/wishlist");
+    if(data.firstCo){
+      navigate("/change-password")
+      
+    }
+    else{
+      navigate("/wishlist");
+    }
   };
 
   return (

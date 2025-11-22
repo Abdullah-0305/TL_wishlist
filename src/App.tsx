@@ -9,6 +9,7 @@ import Wishlist from "./pages/Wishlist";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import ChangePassword from "./pages/ChangePassword";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,9 @@ const AppRoutes = () => {
 
       {/* Admin (protégé) */}
       <Route path="/admin" element={user ? <Admin /> : <Navigate to="/login" replace />} />
+
+      {/* Change MDP Première fois*/}
+      <Route path="change-password" element={user ? <ChangePassword/> : <Navigate to="/login" replace />}   />
 
       {/* Catch-all */}
       <Route path="*" element={<NotFound />} />
