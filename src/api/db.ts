@@ -121,4 +121,36 @@ export async function getColorRoleById(id: string){
   return data?.color || null;
 }
 
+export async function getArmeBossById(id: string){
+  const { data, error } = await supabase
+    .from("armes")
+    .select("nameBoss")
+    .eq("id", id)
+    .maybeSingle();
+
+  if(error) throw error;
+  return data?.nameBoss || null;
+}
+
+export async function getArmureBossById(id: string){
+  const { data, error } = await supabase
+    .from("armures")
+    .select("nameBoss")
+    .eq("id", id)
+    .maybeSingle();
+
+  if(error) throw error;
+  return data?.nameBoss || null;
+}
+
+export async function getAccessoireBossById(id: string){
+  const { data, error } = await supabase
+    .from("accessoires")
+    .select("nameBoss")
+    .eq("id", id)
+    .maybeSingle();
+
+  if(error) throw error;
+  return data?.nameBoss || null;
+}
 

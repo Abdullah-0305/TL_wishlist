@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -18,7 +18,10 @@ import {
   getArmures,
   getAccessoires,
   getRoleById,
-  getColorRoleById
+  getColorRoleById,
+  getArmeBossById,
+  getArmureBossById,
+  getAccessoireBossById
 } from "@/api/db";
 
 interface Player {
@@ -33,6 +36,9 @@ interface Player {
   armeName?: string;
   armureName?: string;
   accessoireName?: string;
+  armeBoss?: string;
+  armureBoss?: string;
+  accessoireBoss?: string;
   idRole?: string;
   roleName?: string;
   roleColor?: string;
@@ -49,10 +55,13 @@ const Admin = () => {
   const [accessoires, setAccessoires] = useState<{ id: string; name: string }[]>([]);
 
   const [selectedFilter, setSelectedFilter] = useState<string>("");
-
   const [modalOpen, setModalOpen] = useState(false);
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
   const [target, setTarget] = useState<{ playerId: string; itemType: "arme" | "armure" | "accessoire" } | null>(null);
+
+  // Modal de retrait
+  const [removeModalOpen, setRemoveModalOpen] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<{ playerId: string; itemType: "arme" | "armure" | "accessoire" } | null>(null);
 
   if (!user) return <Navigate to="/login" replace />;
 
@@ -79,6 +88,9 @@ const Admin = () => {
         armeName: p.idArme ? await getArmeNameById(p.idArme) : "Aucune",
         armureName: p.idArmure ? await getArmureNameById(p.idArmure) : "Aucune",
         accessoireName: p.idAccesoires ? await getAccessoireNameById(p.idAccesoires) : "Aucun",
+        armeBoss: p.idArme ? (await getArmeBossById(p.idArme)) ?? null : null,
+        armureBoss: p.idArmure ? (await getArmureBossById(p.idArmure)) ?? null : null,
+        accessoireBoss: p.idAccesoires ? (await getAccessoireBossById(p.idAccesoires)) ?? null : null,
         roleName: p.idRole ? await getRoleById(p.idRole) : "Aucun",
         roleColor: p.idRole ? await getColorRoleById(p.idRole) : "#9CA3AF"
       }))
@@ -110,6 +122,30 @@ const Admin = () => {
     setFilteredPlayers(results);
   }, [selectedFilter, players]);
 
+  // ----------- GET BOSS COUNTS -------------
+  const bossCounts = useMemo(() => {
+    const bosses: { armes: Record<string, number>; armures: Record<string, number>; accessoires: Record<string, number> } = {
+      armes: {},
+      armures: {},
+      accessoires: {}
+    };
+
+    players.forEach((p) => {
+      if (p.armeBoss) bosses.armes[p.armeBoss] = (bosses.armes[p.armeBoss] || 0) + 1;
+      if (p.armureBoss) bosses.armures[p.armureBoss] = (bosses.armures[p.armureBoss] || 0) + 1;
+      if (p.accessoireBoss) bosses.accessoires[p.accessoireBoss] = (bosses.accessoires[p.accessoireBoss] || 0) + 1;
+    });
+
+    const filterEntries = (obj: Record<string, number>) =>
+      Object.entries(obj).filter(([, count]) => count > 0) as [string, number][];
+
+    return {
+      armes: filterEntries(bosses.armes),
+      armures: filterEntries(bosses.armures),
+      accessoires: filterEntries(bosses.accessoires)
+    };
+  }, [players]);
+
   // -------- BLOCK ----------
   const openModal = (playerId: string, itemType: "arme" | "armure" | "accessoire") => {
     setTarget({ playerId, itemType });
@@ -132,6 +168,33 @@ const Admin = () => {
       setModalOpen(false);
       setTarget(null);
     }
+  };
+
+  // -------- REMOVE ITEM ----------
+  const openRemoveModal = (playerId: string, itemType: "arme" | "armure" | "accessoire") => {
+    setRemoveTarget({ playerId, itemType });
+    setRemoveModalOpen(true);
+  };
+
+  const removeItem = async (playerId: string, itemType: "arme" | "armure" | "accessoire") => {
+    try {
+      await updatePlayer(playerId, {
+        [itemType === "arme" ? "idArme" : itemType === "armure" ? "idArmure" : "idAccesoires"]: null,
+        [itemType === "arme" ? "has_looted_arme" : itemType === "armure" ? "has_looted_armure" : "has_looted_accessoires"]: false
+      });
+      toast.success("Item retiré !");
+      await loadPlayers();
+    } catch (err) {
+      console.error(err);
+      toast.error("Erreur lors du retrait");
+    }
+  };
+
+  const confirmRemove = async () => {
+    if (!removeTarget) return;
+    await removeItem(removeTarget.playerId, removeTarget.itemType);
+    setRemoveModalOpen(false);
+    setRemoveTarget(null);
   };
 
   // -------- UNLOCK ALL ----------
@@ -179,8 +242,46 @@ const Admin = () => {
         </Button>
       </div>
 
+      {/* BOSS COUNTS */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {(["Armes", "Armures", "Accessoires"] as const).map((type) => {
+          const data =
+            type === "Armes"
+              ? bossCounts.armes
+              : type === "Armures"
+              ? bossCounts.armures
+              : bossCounts.accessoires;
+
+          return (
+            <div
+              key={type}
+              className="p-4 bg-card border border-primary/20 rounded-xl shadow-sm"
+            >
+              <h4 className="font-semibold mb-3">{type}</h4>
+              {data.length === 0 ? (
+                <div className="text-sm text-muted-foreground">Aucun boss</div>
+              ) : (
+                <div className="space-y-2">
+                  {data.map(([boss, count]) => (
+                    <div
+                      key={boss}
+                      className="flex justify-between items-center text-sm text-muted-foreground"
+                    >
+                      <span>{boss}</span>
+                      <span className="px-2 py-1 bg-primary/30 rounded-full text-xs font-medium text-primary-foreground">
+                        {count}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
       {/* FILTER BAR */}
-      <div className="flex items-center gap-4 p-4 bg-card border border-primary/20 rounded-xl shadow-sm">
+      <div className="flex flex-wrap items-center gap-4 p-4 bg-card border border-primary/20 rounded-xl shadow-sm">
         <Filter className="h-5 w-5 text-primary" />
         <select
           className="bg-background border border-primary/30 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
@@ -195,7 +296,6 @@ const Admin = () => {
               </option>
             ))}
           </optgroup>
-
           <optgroup label="Armures">
             {armures.map((a) => (
               <option key={a.id} value={a.name}>
@@ -203,7 +303,6 @@ const Admin = () => {
               </option>
             ))}
           </optgroup>
-
           <optgroup label="Accessoires">
             {accessoires.map((a) => (
               <option key={a.id} value={a.name}>
@@ -231,7 +330,7 @@ const Admin = () => {
                 </div>
                 <CardTitle>
                   <div className="flex items-center gap-2">
-                    {player.name} - 
+                    {player.name} -
                     {player.roleName && (
                       <span
                         className="px-4 py-1 mt-1 rounded-full text-xs font-medium text-white"
@@ -247,7 +346,7 @@ const Admin = () => {
             </CardHeader>
 
             <CardContent className="space-y-3">
-              {["arme", "armure", "accessoire"].map((type) => {
+              {(["arme", "armure", "accessoire"] as const).map((type) => {
                 const icon =
                   type === "arme" ? (
                     <Swords className="h-4 w-4 text-primary" />
@@ -279,9 +378,18 @@ const Admin = () => {
                     </div>
 
                     {name !== "Aucune" && name !== "Aucun" && (
-                      <Button size="sm" onClick={() => openModal(player.id, type as any)}>
-                        {hasLooted ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button size="sm" onClick={() => openModal(player.id, type)}>
+                          {hasLooted ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openRemoveModal(player.id, type)}
+                        >
+                          ✕
+                        </Button>
+                      </div>
                     )}
                   </div>
                 );
@@ -307,11 +415,7 @@ const Admin = () => {
                       ? "l'armure"
                       : "l'accessoire"}
                   </strong>{" "}
-                  pour{" "}
-                  <strong>
-                    {players.find((p) => p.id === target.playerId)?.name}
-                  </strong>
-                  ?
+                  pour <strong>{players.find((p) => p.id === target.playerId)?.name}</strong> ?
                 </>
               )}
             </DialogDescription>
@@ -328,21 +432,52 @@ const Admin = () => {
         </DialogContent>
       </Dialog>
 
+      {/* CONFIRM REMOVE MODAL */}
+      <Dialog open={removeModalOpen} onOpenChange={setRemoveModalOpen}>
+        <DialogContent className="bg-card border-primary/30 max-w-sm mx-auto">
+          <DialogHeader>
+            <DialogTitle>Retirer l'item</DialogTitle>
+            <DialogDescription>
+              {removeTarget && (
+                <>
+                  Retirer{" "}
+                  <strong>
+                    {removeTarget.itemType === "arme"
+                      ? "l'arme"
+                      : removeTarget.itemType === "armure"
+                      ? "l'armure"
+                      : "l'accessoire"}
+                  </strong>{" "}
+                  pour <strong>{players.find((p) => p.id === removeTarget.playerId)?.name}</strong> ?
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end mt-4 gap-2">
+            <Button variant="outline" onClick={() => setRemoveModalOpen(false)}>
+              Annuler
+            </Button>
+            <Button className="bg-purple-600 text-white hover:bg-purple-700" onClick={confirmRemove}>
+              Confirmer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* UNLOCK ALL MODAL */}
       <Dialog open={unlockModalOpen} onOpenChange={setUnlockModalOpen}>
         <DialogContent className="bg-card border-primary/30 max-w-sm mx-auto">
           <DialogHeader>
             <DialogTitle>Débloquer tous les items</DialogTitle>
             <DialogDescription>
-              Réinitialiser **toutes** les wishlists ?
+              Réinitialiser <strong>toutes</strong> les wishlists ?
             </DialogDescription>
           </DialogHeader>
-
           <div className="flex justify-end mt-4 gap-2">
             <Button variant="outline" onClick={() => setUnlockModalOpen(false)}>
               Annuler
             </Button>
-            <Button className="bg-purple-600 text-white" onClick={unlockAll}>
+            <Button className="bg-purple-600 text-white hover:bg-purple-700" onClick={unlockAll}>
               Confirmer
             </Button>
           </div>
