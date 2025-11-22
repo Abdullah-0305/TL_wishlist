@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield } from "lucide-react";
+import { Shield, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "@/context/AuthContext";
@@ -15,6 +15,7 @@ const Login = () => {
   const { login } = useAuth();
   const [pseudo, setPseudo] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const onLogin = async () => {
     if (!pseudo || !password) {
@@ -22,7 +23,7 @@ const Login = () => {
       return;
     }
 
-    // Récupère l'utilisateur par pseudo uniquement
+    // Récupération de l'utilisateur
     const { data, error } = await supabase
       .from("player")
       .select("*")
@@ -34,7 +35,7 @@ const Login = () => {
       return;
     }
 
-    // Vérifie le mot de passe côté JS
+    // Vérification du mot de passe
     const valid = await bcrypt.compare(password, data.mdp);
     if (!valid) {
       toast.error("Pseudo ou mot de passe incorrect");
@@ -44,11 +45,9 @@ const Login = () => {
     // Connexion réussie
     login(data.name, data.isAdmin);
     toast.success("Connexion réussie !");
-    if(data.firstCo){
-      navigate("/change-password")
-      
-    }
-    else{
+    if (data.firstCo) {
+      navigate("/change-password");
+    } else {
       navigate("/wishlist");
     }
   };
@@ -67,6 +66,7 @@ const Login = () => {
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+            {/* Pseudo */}
             <div className="space-y-2">
               <Label htmlFor="pseudo">Pseudo</Label>
               <Input
@@ -79,18 +79,29 @@ const Login = () => {
               />
             </div>
 
-            <div className="space-y-2">
+            {/* Mot de passe */}
+            <div className="space-y-2 relative">
               <Label htmlFor="password">Mot de passe</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="border-primary/30 focus:border-primary"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="border-primary/30 focus:border-primary pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-2 flex items-center justify-center px-2"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
 
+            {/* Bouton connexion */}
             <div className="flex flex-col gap-2 pt-2">
               <Button
                 onClick={onLogin}

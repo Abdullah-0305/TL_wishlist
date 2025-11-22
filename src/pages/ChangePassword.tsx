@@ -7,18 +7,22 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import bcrypt from "bcryptjs";
+import { Eye, EyeOff } from "lucide-react";
 
 const ChangePassword = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Si pas connecté, on redirige vers login
   if (!user) return <Navigate to="/login" replace />;
 
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [showOld, setShowOld] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleChange = async () => {
     if (!oldPassword || !newPassword || !confirm) {
@@ -37,7 +41,6 @@ const ChangePassword = () => {
     try {
       setLoading(true);
 
-      // Récupération du joueur
       const { data: player, error } = await supabase
         .from("player")
         .select("*")
@@ -49,31 +52,24 @@ const ChangePassword = () => {
         return;
       }
 
-      // Vérification ancien mot de passe
       const validOld = await bcrypt.compare(oldPassword, player.mdp);
       if (!validOld) {
         toast.error("L'ancien mot de passe est incorrect");
         return;
       }
 
-      // Hash du nouveau mot de passe
       const salt = await bcrypt.genSalt(10);
       const hashed = await bcrypt.hash(newPassword, salt);
 
-      // Mise à jour
       const { error: updateError } = await supabase
         .from("player")
-        .update({
-          mdp: hashed,
-          firstCo: false
-        })
+        .update({ mdp: hashed, firstCo: false })
         .eq("id", player.id);
 
       if (updateError) throw updateError;
 
       toast.success("Mot de passe mis à jour !");
       navigate("/wishlist");
-
     } catch (err) {
       console.error(err);
       toast.error("Erreur lors de la mise à jour.");
@@ -82,42 +78,46 @@ const ChangePassword = () => {
     }
   };
 
+  const renderPasswordInput = (
+    value: string,
+    setValue: any,
+    placeholder: string,
+    show: boolean,
+    setShow: any
+  ) => (
+    <div className="relative">
+      <Input
+        type={show ? "text" : "password"}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="pr-10" // espace pour le bouton œil
+      />
+      <button
+        type="button"
+        onClick={() => setShow(!show)}
+        className="absolute inset-y-0 right-2 flex items-center justify-center text-muted-foreground"
+      >
+        {show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+      </button>
+    </div>
+  );
+
   return (
     <div className="max-w-md mx-auto mt-10">
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle>Changer votre mot de passe</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Vous devez définir un mot de passe personnel avant continuer.
+            Vous devez définir un mot de passe personnel avant de continuer.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Input
-            type="password"
-            placeholder="Ancien mot de passe"
-            value={oldPassword}
-            onChange={(e) => setOldPassword(e.target.value)}
-          />
+          {renderPasswordInput(oldPassword, setOldPassword, "Ancien mot de passe", showOld, setShowOld)}
+          {renderPasswordInput(newPassword, setNewPassword, "Nouveau mot de passe", showNew, setShowNew)}
+          {renderPasswordInput(confirm, setConfirm, "Confirmer le mot de passe", showConfirm, setShowConfirm)}
 
-          <Input
-            type="password"
-            placeholder="Nouveau mot de passe"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-          />
-
-          <Input
-            type="password"
-            placeholder="Confirmer le mot de passe"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-          />
-
-          <Button
-            onClick={handleChange}
-            className="w-full"
-            disabled={loading}
-          >
+          <Button onClick={handleChange} className="w-full" disabled={loading}>
             {loading ? "Chargement..." : "Mettre à jour"}
           </Button>
         </CardContent>
