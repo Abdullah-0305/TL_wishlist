@@ -1,101 +1,108 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { UserCog, Lock, Swords, Shield as ShieldIcon, Gem } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { UserCog, Lock, Unlock, Swords, Shield as ShieldIcon, Gem } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
+import { getPlayers, setPlayerHasLooted, getArmeNameById, getArmureNameById, getAccessoireNameById, updatePlayer } from "@/api/db";
 
-// Mock data - liste fictive de joueurs
-const mockPlayers = [
-  {
-    id: 1,
-    pseudo: "DragonSlayer",
-    weapon: "Épée du Dragon Noir",
-    armor: "Armure du Titan",
-    accessory: "Anneau de Puissance",
-  },
-  {
-    id: 2,
-    pseudo: "MageSupreme",
-    weapon: "Bâton des Arcanes",
-    armor: "Robe de l'Érudit",
-    accessory: "Collier de Sagesse",
-  },
-  {
-    id: 3,
-    pseudo: "ShadowArcher",
-    weapon: "Lame de l'Ombre",
-    armor: "Cuirasse de Lumière",
-    accessory: "Boucles d'Oreille Mystiques",
-  },
-];
+interface Player {
+  id: string;
+  name: string;
+  idArme?: string | null;
+  idArmure?: string | null;
+  idAccessoires?: string | null;
+  has_looted_arme?: boolean;
+  has_looted_armure?: boolean;
+  has_looted_accessoires?: boolean;
+  armeName?: string;
+  armureName?: string;
+  accessoireName?: string;
+}
 
-const allItems = {
-  weapons: ["Épée du Dragon Noir", "Lame de l'Ombre", "Arc du Phénix", "Bâton des Arcanes"],
-  armors: ["Armure du Titan", "Cuirasse de Lumière", "Robe de l'Érudit"],
-  accessories: ["Anneau de Puissance", "Collier de Sagesse", "Boucles d'Oreille Mystiques", "Ceinture du Champion"],
-};
-
-// Placeholder functions
-const loadAdminData = () => {
-  console.log("Loading admin data");
-  // TODO: Connect to backend
-};
-
-const blockItem = (playerId: number, item: string, category: string) => {
-  console.log("Blocking item:", { playerId, item, category });
-  // TODO: Connect to backend
-};
+interface LootTarget {
+  playerId: string;
+  itemType: "arme" | "armure" | "accessoire";
+}
 
 const Admin = () => {
-
   const { user } = useAuth();
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [target, setTarget] = useState<LootTarget | null>(null);
+  const [unlockModalOpen, setUnlockModalOpen] = useState(false);
 
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/login" replace />;
 
-  const [selectedPlayer, setSelectedPlayer] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedItem, setSelectedItem] = useState("");
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const loadPlayers = async () => {
+    const { data, error } = await getPlayers();
+    if (error) return toast.error("Erreur lors du chargement des joueurs");
+    if (!data) return;
 
-  const handleBlockItem = () => {
-    if (!selectedPlayer || !selectedItem || !selectedCategory) {
-      toast.error("Veuillez sélectionner tous les champs");
-      return;
-    }
-
-    blockItem(parseInt(selectedPlayer), selectedItem, selectedCategory);
-    toast.success("Item bloqué !", {
-      description: `${selectedItem} a été bloqué pour le joueur sélectionné.`,
-    });
-    
-    // Reset form
-    setSelectedPlayer("");
-    setSelectedCategory("");
-    setSelectedItem("");
-    setIsDialogOpen(false);
+    const playersWithNames: Player[] = await Promise.all(
+      data.map(async (player) => ({
+        ...player,
+        armeName: player.idArme ? await getArmeNameById(player.idArme) : "Aucune",
+        armureName: player.idArmure ? await getArmureNameById(player.idArmure) : "Aucune",
+        accessoireName: player.idAccesoires ? await getAccessoireNameById(player.idAccesoires) : "Aucun",
+      }))
+    );
+    setPlayers(playersWithNames);
   };
 
-  const getCategoryItems = () => {
-    switch (selectedCategory) {
-      case "weapons":
-        return allItems.weapons;
-      case "armors":
-        return allItems.armors;
-      case "accessories":
-        return allItems.accessories;
-      default:
-        return [];
+  useEffect(() => {
+    loadPlayers();
+  }, []);
+
+  const openModal = (playerId: string, itemType: LootTarget["itemType"]) => {
+    setTarget({ playerId, itemType });
+    setModalOpen(true);
+  };
+
+  const confirmBlock = async () => {
+    if (!target) return;
+    const player = players.find(p => p.id === target.playerId);
+    if (!player) return;
+
+    try {
+      await setPlayerHasLooted(target.playerId, true, target.itemType);
+      toast.success(`${target.itemType.toUpperCase()} de ${player.name} bloqué avec succès !`);
+      await loadPlayers();
+    } catch (err) {
+      console.error(err);
+      toast.error("Erreur lors du blocage");
+    } finally {
+      setModalOpen(false);
+      setTarget(null);
+    }
+  };
+
+  const unlockAll = async () => {
+    try {
+      await Promise.all(players.map(p => updatePlayer(p.id, {
+        has_looted_arme: false,
+        has_looted_armure: false,
+        has_looted_accessoires: false,
+        idArme: null,
+        idArmure: null,
+        idAccesoires: null
+      })));
+      toast.success("Tous les items ont été débloqués !");
+      await loadPlayers();
+    } catch (err) {
+      console.error(err);
+      toast.error("Erreur lors du déblocage");
+    } finally {
+      setUnlockModalOpen(false);
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="max-w-6xl mx-auto space-y-6 p-4">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-4xl font-bold bg-gradient-gold bg-clip-text text-transparent">
             Administration
@@ -104,121 +111,127 @@ const Admin = () => {
             Gérez les wishlists des membres de la guilde
           </p>
         </div>
-        
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-primary hover:opacity-90 shadow-glow-primary">
-              <Lock className="mr-2 h-4 w-4" />
-              Bloquer un item
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="bg-card border-primary/30">
-            <DialogHeader>
-              <DialogTitle>Bloquer un item</DialogTitle>
-              <DialogDescription>
-                Empêchez un joueur de sélectionner un item spécifique
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Joueur</Label>
-                <Select value={selectedPlayer} onValueChange={setSelectedPlayer}>
-                  <SelectTrigger className="border-primary/30">
-                    <SelectValue placeholder="Sélectionner un joueur" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-primary/30 z-50">
-                    {mockPlayers.map((player) => (
-                      <SelectItem key={player.id} value={player.id.toString()}>
-                        {player.pseudo}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Catégorie</Label>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="border-primary/30">
-                    <SelectValue placeholder="Sélectionner une catégorie" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-primary/30 z-50">
-                    <SelectItem value="weapons">Armes</SelectItem>
-                    <SelectItem value="armors">Armures</SelectItem>
-                    <SelectItem value="accessories">Accessoires</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedCategory && (
-                <div className="space-y-2">
-                  <Label>Item</Label>
-                  <Select value={selectedItem} onValueChange={setSelectedItem}>
-                    <SelectTrigger className="border-primary/30">
-                      <SelectValue placeholder="Sélectionner un item" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border-primary/30 z-50">
-                      {getCategoryItems().map((item) => (
-                        <SelectItem key={item} value={item}>
-                          {item}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-
-            <Button onClick={handleBlockItem} className="w-full bg-gradient-primary">
-              <Lock className="mr-2 h-4 w-4" />
-              Confirmer le blocage
-            </Button>
-          </DialogContent>
-        </Dialog>
+        <Button 
+          onClick={() => setUnlockModalOpen(true)}
+          className="border-primary/20 hover:border-primary/40 text-white shadow-md flex items-center gap-2 px-4 py-2 rounded"
+        >
+          <Unlock className="h-4 w-4" /> Tout vider et débloquer
+        </Button>
       </div>
 
       {/* Liste des joueurs */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {mockPlayers.map((player) => (
-          <Card key={player.id} className="border-primary/20 hover:border-primary/40 transition-colors">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {players.map((player) => (
+          <Card key={player.id} className="border-primary/20 hover:border-primary/40 transition-colors break-words">
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-gradient-primary">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="p-2 rounded-lg bg-gradient-primary flex-shrink-0">
                   <UserCog className="h-5 w-5 text-primary-foreground" />
                 </div>
-                <CardTitle>{player.pseudo}</CardTitle>
+                <CardTitle className="truncate">{player.name}</CardTitle>
               </div>
               <CardDescription>Choix actuels</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-start gap-2">
-                <Swords className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Arme</p>
-                  <p className="text-sm text-muted-foreground truncate">{player.weapon}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-2">
-                <ShieldIcon className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Armure</p>
-                  <p className="text-sm text-muted-foreground truncate">{player.armor}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-2">
-                <Gem className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Accessoire</p>
-                  <p className="text-sm text-muted-foreground truncate">{player.accessory}</p>
-                </div>
-              </div>
+              {["arme", "armure", "accessoire"].map((type) => {
+                const icon =
+                  type === "arme" ? <Swords className="h-4 w-4 text-primary flex-shrink-0" /> :
+                  type === "armure" ? <ShieldIcon className="h-4 w-4 text-primary flex-shrink-0" /> :
+                  <Gem className="h-4 w-4 text-primary flex-shrink-0" />;
+
+                const name =
+                  type === "arme" ? player.armeName :
+                  type === "armure" ? player.armureName :
+                  player.accessoireName;
+
+                const hasLooted =
+                  type === "arme" ? player.has_looted_arme :
+                  type === "armure" ? player.has_looted_armure :
+                  player.has_looted_accessoires;
+
+                return (
+                  <div key={type} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {icon}
+                      <div className="flex flex-col min-w-0">
+                        <p className="text-sm font-medium capitalize">{type}</p>
+                        
+                        {/* Nom de l'item avec tooltip */}
+                        <p
+                          className="text-sm text-muted-foreground truncate cursor-pointer"
+                          data-tooltip-target={`tooltip-${player.id}-${type}`}
+                        >
+                          {name || "Aucun"}
+                        </p>
+
+                        {/* Tooltip */}
+                        <div
+                          id={`tooltip-${player.id}-${type}`}
+                          className="absolute z-50 whitespace-normal break-words rounded-lg bg-black py-1.5 px-3 text-sm text-white invisible group-hover:visible"
+                        >
+                          {name || "Aucun"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {name && name !== "Aucune" && name !== "Aucun" && (
+                      <Button
+                        size="sm"
+                        onClick={() => openModal(player.id, type as LootTarget["itemType"])}
+                        disabled={hasLooted}
+                        className="flex-shrink-0"
+                      >
+                        <Lock className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* Modal de confirmation blocage */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="bg-card border-primary/30 max-w-sm mx-auto">
+          <DialogHeader>
+            <DialogTitle>Bloquer l'item</DialogTitle>
+            <DialogDescription>
+              {target && (
+                <>
+                  Êtes-vous sûr de vouloir bloquer{" "}
+                  <span className="font-semibold">
+                    {target.itemType === "arme" ? "l'arme" :
+                     target.itemType === "armure" ? "l'armure" : "l'accessoire"}
+                  </span>{" "}
+                  pour le joueur <span className="font-semibold">{players.find(p => p.id === target.playerId)?.name}</span> ?
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end mt-4 gap-2">
+            <Button variant="outline" onClick={() => setModalOpen(false)}>Annuler</Button>
+            <Button onClick={confirmBlock} className="bg-gradient-primary">Confirmer</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de déblocage global */}
+      <Dialog open={unlockModalOpen} onOpenChange={setUnlockModalOpen}>
+        <DialogContent className="bg-card border-primary/30 max-w-sm mx-auto">
+          <DialogHeader>
+            <DialogTitle>Débloquer tous les items</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir débloquer tous les items pour tous les joueurs ?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end mt-4 gap-2">
+            <Button variant="outline" onClick={() => setUnlockModalOpen(false)}>Annuler</Button>
+            <Button onClick={unlockAll} className="bg-purple-600 hover:bg-purple-700 text-white">Confirmer</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

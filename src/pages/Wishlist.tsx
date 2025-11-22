@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "../lib/supabase";
-import { getArmes, getArmures, getAccessoires, getRoles, getPlayerByName, updatePlayer } from "@/api/db";
+import { getArmes, getArmures, getAccessoires, getRoles } from "@/api/db";
 
 interface Item {
   id: number;
@@ -33,6 +33,10 @@ const Wishlist = () => {
   const [weaponLocked, setWeaponLocked] = useState(false);
   const [armorLocked, setArmorLocked] = useState(false);
   const [accessoryLocked, setAccessoryLocked] = useState(false);
+
+  const [hasLootedArme, setHasLootedArme] = useState(false);
+  const [hasLootedArmure, setHasLootedArmure] = useState(false);
+  const [hasLootedAccessoire, setHasLootedAccessoire] = useState(false);
 
   const loadData = async () => {
     try {
@@ -63,27 +67,27 @@ const Wishlist = () => {
       }
 
       // Role
-      if (player.idRole) {
-        setRole(player.idRole.toString());
-      }
+      if (player.idRole) setRole(player.idRole.toString());
 
-      // Armes
+      // Wishlist déjà choisie
       if (player.idArme) {
         setSelectedWeapon(player.idArme.toString());
         setWeaponLocked(true);
       }
-
-      // Armures
       if (player.idArmure) {
         setSelectedArmor(player.idArmure.toString());
         setArmorLocked(true);
       }
-
-      // Accessoires
-      if (player.idAccessoires) {
-        setSelectedAccessory(player.idAccessoires.toString());
+      if (player.idAccesoires) {
+        setSelectedAccessory(player.idAccesoires.toString());
         setAccessoryLocked(true);
       }
+
+      // Loots (3 bools)
+      setHasLootedArme(player.has_looted_arme);
+      setHasLootedArmure(player.has_looted_armure);
+      setHasLootedAccessoire(player.has_looted_accessoires);
+
     } catch (err) {
       console.error(err);
       toast.error("Erreur de chargement.");
@@ -103,20 +107,19 @@ const Wishlist = () => {
     }
 
     try {
-      // Récupérer l'id du joueur
       const { data: player, error: playerError } = await supabase
         .from("player")
         .select("id")
         .eq("name", user.name)
         .maybeSingle();
+
       if (playerError || !player) throw playerError || new Error("Joueur introuvable");
 
-      // Préparer les données à mettre à jour
       const updateData: any = { idRole: parseInt(role) };
 
-      if (!weaponLocked && selectedWeapon) updateData.idArme = parseInt(selectedWeapon);
-      if (!armorLocked && selectedArmor) updateData.idArmure = parseInt(selectedArmor);
-      if (!accessoryLocked && selectedAccessory) updateData.idAccessoires = parseInt(selectedAccessory);
+      if (!weaponLocked && selectedWeapon && !hasLootedArme) updateData.idArme = parseInt(selectedWeapon);
+      if (!armorLocked && selectedArmor && !hasLootedArmure) updateData.idArmure = parseInt(selectedArmor);
+      if (!accessoryLocked && selectedAccessory && !hasLootedAccessoire) updateData.idAccesoires = parseInt(selectedAccessory);
 
       const { error } = await supabase
         .from("player")
@@ -126,7 +129,6 @@ const Wishlist = () => {
       if (error) throw error;
 
       toast.success("Wishlist sauvegardée !");
-      // Recharger les infos pour bloquer les items choisis
       await loadData();
     } catch (err) {
       console.error(err);
@@ -162,6 +164,7 @@ const Wishlist = () => {
       </Card>
 
       <div className="grid md:grid-cols-3 gap-6">
+
         {/* ARME */}
         <Card>
           <CardHeader>
@@ -179,15 +182,23 @@ const Wishlist = () => {
               <SelectTrigger className={weaponLocked ? "opacity-50" : ""}>
                 <SelectValue placeholder="Choisir une arme" />
               </SelectTrigger>
+
               <SelectContent>
                 {weapons.map(w => (
-                  <SelectItem key={w.id} value={w.id.toString()}>
+                  <SelectItem
+                    key={w.id}
+                    value={w.id.toString()}
+                    className={hasLootedArme && selectedWeapon == w.id.toString() ? "text-purple-400" : ""}
+                  >
                     {w.name}
+                    {hasLootedArme && selectedWeapon == w.id.toString() && " — déjà loot"}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+
             {weaponLocked && <p className="text-xs text-red-400 mt-2">Déjà choisi</p>}
+            {hasLootedArme && <p className="text-xs text-purple-400 mt-1">Tu as déjà loot une arme</p>}
           </CardContent>
         </Card>
 
@@ -208,15 +219,23 @@ const Wishlist = () => {
               <SelectTrigger className={armorLocked ? "opacity-50" : ""}>
                 <SelectValue placeholder="Choisir une armure" />
               </SelectTrigger>
+
               <SelectContent>
                 {armors.map(a => (
-                  <SelectItem key={a.id} value={a.id.toString()}>
+                  <SelectItem
+                    key={a.id}
+                    value={a.id.toString()}
+                    className={hasLootedArmure && selectedArmor == a.id.toString() ? "text-purple-400" : ""}
+                  >
                     {a.name}
+                    {hasLootedArmure && selectedArmor == a.id.toString() && " — déjà loot"}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+
             {armorLocked && <p className="text-xs text-red-400 mt-2">Déjà choisi</p>}
+            {hasLootedArmure && <p className="text-xs text-purple-400 mt-1">Tu as déjà loot une armure</p>}
           </CardContent>
         </Card>
 
@@ -237,15 +256,23 @@ const Wishlist = () => {
               <SelectTrigger className={accessoryLocked ? "opacity-50" : ""}>
                 <SelectValue placeholder="Choisir un accessoire" />
               </SelectTrigger>
+
               <SelectContent>
                 {accessories.map(acc => (
-                  <SelectItem key={acc.id} value={acc.id.toString()}>
+                  <SelectItem
+                    key={acc.id}
+                    value={acc.id.toString()}
+                    className={hasLootedAccessoire && selectedAccessory == acc.id.toString() ? "text-purple-400" : ""}
+                  >
                     {acc.name}
+                    {hasLootedAccessoire && selectedAccessory == acc.id.toString() && " — déjà loot"}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+
             {accessoryLocked && <p className="text-xs text-red-400 mt-2">Déjà choisi</p>}
+            {hasLootedAccessoire && <p className="text-xs text-purple-400 mt-1">Tu as déjà loot un accessoire</p>}
           </CardContent>
         </Card>
       </div>

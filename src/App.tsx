@@ -8,9 +8,35 @@ import Login from "./pages/Login";
 import Wishlist from "./pages/Wishlist";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 
 const queryClient = new QueryClient();
+
+const AppRoutes = () => {
+  const { user } = useAuth();
+
+  return (
+    <Routes>
+      {/* Page par défaut */}
+      <Route
+        path="/"
+        element={user ? <Navigate to="/wishlist" replace /> : <Navigate to="/login" replace />}
+      />
+
+      {/* Login */}
+      <Route path="/login" element={user ? <Navigate to="/wishlist" replace /> : <Login />} />
+
+      {/* Wishlist (protégé) */}
+      <Route path="/wishlist" element={user ? <Wishlist /> : <Navigate to="/login" replace />} />
+
+      {/* Admin (protégé) */}
+      <Route path="/admin" element={user ? <Admin /> : <Navigate to="/login" replace />} />
+
+      {/* Catch-all */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -20,14 +46,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Layout>
-            <Routes>
-              <Route path="/" element={<Navigate to="/login" replace />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/wishlist" element={<Wishlist />} />
-              <Route path="/admin" element={<Admin />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <AppRoutes />
           </Layout>
         </BrowserRouter>
       </TooltipProvider>
