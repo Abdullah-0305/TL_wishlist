@@ -10,19 +10,6 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 
 const Login = () => {
-
-  const test = async () => {
-  const { data, error } = await supabase.from("player").select("*").limit(1);
-  if(data){
-    console.log("data : " ,data)
-  }
-  else{
-    console.log("error : ", error)
-  }
-};
-
-test();
-
   const navigate = useNavigate();
   const { login } = useAuth();
   const [pseudo, setPseudo] = useState("");

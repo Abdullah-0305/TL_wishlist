@@ -1,204 +1,258 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Swords, Shield as ShieldIcon, Gem, Save } from "lucide-react";
 import { toast } from "sonner";
-import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "../lib/supabase";
+import { getArmes, getArmures, getAccessoires, getRoles, getPlayerByName, updatePlayer } from "@/api/db";
 
-// Mock data - exemples temporaires
-const weapons = [
-  { id: "sword1", name: "Épée du Dragon Noir", disabled: false },
-  { id: "sword2", name: "Lame de l'Ombre", disabled: false },
-  { id: "bow1", name: "Arc du Phénix", disabled: true },
-  { id: "staff1", name: "Bâton des Arcanes", disabled: false },
-];
-
-const armors = [
-  { id: "armor1", name: "Armure du Titan", disabled: false },
-  { id: "armor2", name: "Cuirasse de Lumière", disabled: false },
-  { id: "armor3", name: "Robe de l'Érudit", disabled: true },
-];
-
-const accessories = [
-  { id: "acc1", name: "Anneau de Puissance", disabled: false },
-  { id: "acc2", name: "Collier de Sagesse", disabled: false },
-  { id: "acc3", name: "Boucles d'Oreille Mystiques", disabled: false },
-  { id: "acc4", name: "Ceinture du Champion", disabled: true },
-];
-
-// Placeholder function
-const saveWishlist = (data: any) => {
-  console.log("Saving wishlist:", data);
-  // TODO: Connect to backend
-};
+interface Item {
+  id: number;
+  name: string;
+}
 
 const Wishlist = () => {
   const { user } = useAuth();
-
   if (!user) return <Navigate to="/login" replace />;
 
+  const [loading, setLoading] = useState(true);
+
+  const [weapons, setWeapons] = useState<Item[]>([]);
+  const [armors, setArmors] = useState<Item[]>([]);
+  const [accessories, setAccessories] = useState<Item[]>([]);
+  const [roles, setRoles] = useState<Item[]>([]);
+
+  const [role, setRole] = useState("");
   const [selectedWeapon, setSelectedWeapon] = useState("");
   const [selectedArmor, setSelectedArmor] = useState("");
   const [selectedAccessory, setSelectedAccessory] = useState("");
-  const [notes, setNotes] = useState("");
 
-  const handleSave = () => {
-    const wishlistData = {
-      weapon: selectedWeapon,
-      armor: selectedArmor,
-      accessory: selectedAccessory,
-      notes,
-    };
-    
-    saveWishlist(wishlistData);
-    toast.success("Wishlist sauvegardée !", {
-      description: "Vos préférences ont été enregistrées avec succès.",
-    });
+  const [weaponLocked, setWeaponLocked] = useState(false);
+  const [armorLocked, setArmorLocked] = useState(false);
+  const [accessoryLocked, setAccessoryLocked] = useState(false);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+
+      // Récupération des items
+      const { data: w } = await getArmes();
+      const { data: a } = await getArmures();
+      const { data: ac } = await getAccessoires();
+      const { data: r } = await getRoles();
+
+      setWeapons(w || []);
+      setArmors(a || []);
+      setAccessories(ac || []);
+      setRoles(r || []);
+
+      // Récupération du joueur
+      const { data: player, error } = await supabase
+        .from("player")
+        .select("*")
+        .eq("name", user.name)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!player) {
+        toast.error("Utilisateur non trouvé !");
+        return;
+      }
+
+      // Role
+      if (player.idRole) {
+        setRole(player.idRole.toString());
+      }
+
+      // Armes
+      if (player.idArme) {
+        setSelectedWeapon(player.idArme.toString());
+        setWeaponLocked(true);
+      }
+
+      // Armures
+      if (player.idArmure) {
+        setSelectedArmor(player.idArmure.toString());
+        setArmorLocked(true);
+      }
+
+      // Accessoires
+      if (player.idAccessoires) {
+        setSelectedAccessory(player.idAccessoires.toString());
+        setAccessoryLocked(true);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Erreur de chargement.");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleSave = async () => {
+    if (!role) {
+      toast.error("Vous devez choisir un rôle.");
+      return;
+    }
+
+    try {
+      // Récupérer l'id du joueur
+      const { data: player, error: playerError } = await supabase
+        .from("player")
+        .select("id")
+        .eq("name", user.name)
+        .maybeSingle();
+      if (playerError || !player) throw playerError || new Error("Joueur introuvable");
+
+      // Préparer les données à mettre à jour
+      const updateData: any = { idRole: parseInt(role) };
+
+      if (!weaponLocked && selectedWeapon) updateData.idArme = parseInt(selectedWeapon);
+      if (!armorLocked && selectedArmor) updateData.idArmure = parseInt(selectedArmor);
+      if (!accessoryLocked && selectedAccessory) updateData.idAccessoires = parseInt(selectedAccessory);
+
+      const { error } = await supabase
+        .from("player")
+        .update(updateData)
+        .eq("id", player.id);
+
+      if (error) throw error;
+
+      toast.success("Wishlist sauvegardée !");
+      // Recharger les infos pour bloquer les items choisis
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      toast.error("Erreur lors de la sauvegarde.");
+    }
+  };
+
+  if (loading) return <p className="text-center text-white">Chargement...</p>;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-4xl font-bold bg-gradient-gold bg-clip-text text-transparent">
-          Ma Wishlist
-        </h1>
-        <p className="text-muted-foreground">
-          Sélectionnez vos équipements préférés et ajoutez des notes
-        </p>
-      </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
-        {/* Armes */}
-        <Card className="border-primary/20">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/20">
-                <Swords className="h-5 w-5 text-primary" />
-              </div>
-              <CardTitle className="text-xl">Armes</CardTitle>
-            </div>
-            <CardDescription>Choisissez votre arme favorite</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Select value={selectedWeapon} onValueChange={setSelectedWeapon}>
-              <SelectTrigger className="border-primary/30">
-                <SelectValue placeholder="Sélectionner une arme" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-primary/30 z-50">
-                {weapons.map((weapon) => (
-                  <SelectItem
-                    key={weapon.id}
-                    value={weapon.id}
-                    disabled={weapon.disabled}
-                    className={weapon.disabled ? "opacity-50 cursor-not-allowed" : ""}
-                  >
-                    {weapon.name}
-                    {weapon.disabled && " (Bloqué)"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        {/* Armures */}
-        <Card className="border-primary/20">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/20">
-                <ShieldIcon className="h-5 w-5 text-primary" />
-              </div>
-              <CardTitle className="text-xl">Armures</CardTitle>
-            </div>
-            <CardDescription>Choisissez votre armure favorite</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Select value={selectedArmor} onValueChange={setSelectedArmor}>
-              <SelectTrigger className="border-primary/30">
-                <SelectValue placeholder="Sélectionner une armure" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-primary/30 z-50">
-                {armors.map((armor) => (
-                  <SelectItem
-                    key={armor.id}
-                    value={armor.id}
-                    disabled={armor.disabled}
-                    className={armor.disabled ? "opacity-50 cursor-not-allowed" : ""}
-                  >
-                    {armor.name}
-                    {armor.disabled && " (Bloqué)"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        {/* Accessoires */}
-        <Card className="border-primary/20">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/20">
-                <Gem className="h-5 w-5 text-primary" />
-              </div>
-              <CardTitle className="text-xl">Accessoires</CardTitle>
-            </div>
-            <CardDescription>Choisissez votre accessoire favori</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Select value={selectedAccessory} onValueChange={setSelectedAccessory}>
-              <SelectTrigger className="border-primary/30">
-                <SelectValue placeholder="Sélectionner un accessoire" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-primary/30 z-50">
-                {accessories.map((acc) => (
-                  <SelectItem
-                    key={acc.id}
-                    value={acc.id}
-                    disabled={acc.disabled}
-                    className={acc.disabled ? "opacity-50 cursor-not-allowed" : ""}
-                  >
-                    {acc.name}
-                    {acc.disabled && " (Bloqué)"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Notes */}
+      {/* ROLE */}
       <Card className="border-primary/20">
         <CardHeader>
-          <CardTitle>Notes</CardTitle>
-          <CardDescription>
-            Ajoutez des informations supplémentaires sur vos préférences
-          </CardDescription>
+          <CardTitle>Rôle</CardTitle>
+          <CardDescription>Obligatoire pour valider</CardDescription>
         </CardHeader>
         <CardContent>
-          <Textarea
-            placeholder="Exemple: Je préfère les équipements avec bonus de dégâts magiques..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="min-h-32 border-primary/30 focus:border-primary resize-none"
-          />
+          <Select value={role} onValueChange={setRole}>
+            <SelectTrigger>
+              <SelectValue placeholder="Sélectionner un rôle" />
+            </SelectTrigger>
+            <SelectContent>
+              {roles.map(r => (
+                <SelectItem key={r.id} value={r.id.toString()}>
+                  {r.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
 
-      {/* Bouton sauvegarder */}
+      <div className="grid md:grid-cols-3 gap-6">
+        {/* ARME */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Swords className="text-primary" />
+              <CardTitle>Armes</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Select
+              disabled={weaponLocked}
+              value={selectedWeapon}
+              onValueChange={setSelectedWeapon}
+            >
+              <SelectTrigger className={weaponLocked ? "opacity-50" : ""}>
+                <SelectValue placeholder="Choisir une arme" />
+              </SelectTrigger>
+              <SelectContent>
+                {weapons.map(w => (
+                  <SelectItem key={w.id} value={w.id.toString()}>
+                    {w.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {weaponLocked && <p className="text-xs text-red-400 mt-2">Déjà choisi</p>}
+          </CardContent>
+        </Card>
+
+        {/* ARMURE */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <ShieldIcon className="text-primary" />
+              <CardTitle>Armures</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Select
+              disabled={armorLocked}
+              value={selectedArmor}
+              onValueChange={setSelectedArmor}
+            >
+              <SelectTrigger className={armorLocked ? "opacity-50" : ""}>
+                <SelectValue placeholder="Choisir une armure" />
+              </SelectTrigger>
+              <SelectContent>
+                {armors.map(a => (
+                  <SelectItem key={a.id} value={a.id.toString()}>
+                    {a.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {armorLocked && <p className="text-xs text-red-400 mt-2">Déjà choisi</p>}
+          </CardContent>
+        </Card>
+
+        {/* ACCESSOIRES */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Gem className="text-primary" />
+              <CardTitle>Accessoires</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Select
+              disabled={accessoryLocked}
+              value={selectedAccessory}
+              onValueChange={setSelectedAccessory}
+            >
+              <SelectTrigger className={accessoryLocked ? "opacity-50" : ""}>
+                <SelectValue placeholder="Choisir un accessoire" />
+              </SelectTrigger>
+              <SelectContent>
+                {accessories.map(acc => (
+                  <SelectItem key={acc.id} value={acc.id.toString()}>
+                    {acc.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {accessoryLocked && <p className="text-xs text-red-400 mt-2">Déjà choisi</p>}
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="flex justify-center">
-        <Button
-          onClick={handleSave}
-          size="lg"
-          className="bg-gradient-gold text-secondary-foreground hover:opacity-90 shadow-glow-gold"
-        >
-          <Save className="mr-2 h-5 w-5" />
-          Sauvegarder ma wishlist
+        <Button onClick={handleSave}>
+          <Save className="mr-2" /> Sauvegarder
         </Button>
       </div>
     </div>
