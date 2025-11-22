@@ -58,41 +58,6 @@ test();
     navigate("/wishlist");
   };
 
-  const onRegister = async () => {
-    if (!pseudo || !password) {
-      toast.error("Veuillez remplir tous les champs");
-      return;
-    }
-
-    // Vérifie si le pseudo existe déjà
-    const { data: existing } = await supabase
-      .from("player")
-      .select("name")
-      .eq("name", pseudo)
-      .single();
-
-    if (existing) {
-      toast.error("Ce pseudo est déjà utilisé");
-      return;
-    }
-
-    // Crée le nouvel utilisateur (isAdmin = false par défaut)
-    const { data: newUser, error } = await supabase
-      .from("player")
-      .insert({ name: pseudo, mdp: password, isAdmin: false })
-      .select()
-      .single();
-
-    if (error || !newUser) {
-      toast.error("Erreur lors de la création du compte");
-      return;
-    }
-
-    login(newUser.name, newUser.isAdmin);
-    toast.success("Compte créé avec succès !");
-    navigate("/wishlist");
-  };
-
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
       <Card className="w-full max-w-md border-primary/20 shadow-glow-primary">
@@ -137,13 +102,6 @@ test();
                 className="w-full bg-gradient-primary hover:opacity-90 shadow-glow-primary"
               >
                 Se connecter
-              </Button>
-              <Button
-                onClick={onRegister}
-                variant="outline"
-                className="w-full border-primary/30 hover:bg-primary/10"
-              >
-                Créer un compte
               </Button>
             </div>
           </form>
