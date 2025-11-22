@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Swords, Shield as ShieldIcon, Gem, Save } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+import { Navigate } from "react-router-dom";
 
 // Mock data - exemples temporaires
 const weapons = [
@@ -35,6 +37,10 @@ const saveWishlist = (data: any) => {
 };
 
 const Wishlist = () => {
+  const { user } = useAuth();
+
+  if (!user) return <Navigate to="/login" replace />;
+
   const [selectedWeapon, setSelectedWeapon] = useState("");
   const [selectedArmor, setSelectedArmor] = useState("");
   const [selectedAccessory, setSelectedAccessory] = useState("");

@@ -1,15 +1,17 @@
 import { Link, useLocation } from "react-router-dom";
-import { Swords, Shield, UserCog } from "lucide-react";
+import { Swords, Shield, UserCog, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
-  
+  const { user, logout } = useAuth();
+
   const navItems = [
-    { path: "/login", label: "Connexion", icon: Shield },
-    { path: "/wishlist", label: "Wishlist", icon: Swords },
-    { path: "/admin", label: "Admin", icon: UserCog },
-  ];
+    !user && { path: "/login", label: "Connexion", icon: Shield },
+    user && { path: "/wishlist", label: "Wishlist", icon: Swords },
+    user?.isAdmin && { path: "/admin", label: "Admin", icon: UserCog },
+  ].filter(Boolean); // supprime les items falsy
 
   return (
     <div className="min-h-screen bg-gradient-dark">
@@ -22,9 +24,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 Akatsushi
               </span>
             </Link>
-            
-            <div className="flex gap-1">
-              {navItems.map((item) => (
+
+            <div className="flex gap-1 items-center">
+              {navItems.map((item: any) => (
                 <Link
                   key={item.path}
                   to={item.path}
@@ -40,11 +42,21 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                   <span className="hidden sm:inline">{item.label}</span>
                 </Link>
               ))}
+
+              {user && (
+                <button
+                  onClick={logout}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:bg-red-600 hover:text-white transition-all"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden sm:inline">Se déconnecter</span>
+                </button>
+              )}
             </div>
           </div>
         </nav>
       </header>
-      
+
       <main className="container mx-auto px-4 py-8">
         {children}
       </main>

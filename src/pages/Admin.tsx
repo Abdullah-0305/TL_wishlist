@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { UserCog, Lock, Swords, Shield as ShieldIcon, Gem } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+import { Navigate } from "react-router-dom";
 
 // Mock data - liste fictive de joueurs
 const mockPlayers = [
@@ -50,6 +52,11 @@ const blockItem = (playerId: number, item: string, category: string) => {
 };
 
 const Admin = () => {
+
+  const { user } = useAuth();
+
+  if (!user) return <Navigate to="/login" replace />
+
   const [selectedPlayer, setSelectedPlayer] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedItem, setSelectedItem] = useState("");

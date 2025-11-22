@@ -6,51 +6,91 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield } from "lucide-react";
 import { toast } from "sonner";
-
-// Placeholder functions - à connecter au backend
-const handleLogin = (pseudo: string, password: string) => {
-  console.log("Login attempt:", { pseudo, password });
-  // TODO: Connect to backend
-  return true;
-};
-
-const handleRegister = (pseudo: string, password: string) => {
-  console.log("Register attempt:", { pseudo, password });
-  // TODO: Connect to backend
-  return true;
-};
+import { supabase } from "../lib/supabase";
+import { useAuth } from "@/context/AuthContext";
 
 const Login = () => {
+
+  const test = async () => {
+  const { data, error } = await supabase.from("player").select("*").limit(1);
+  if(data){
+    console.log("data : " ,data)
+  }
+  else{
+    console.log("error : ", error)
+  }
+};
+
+test();
+
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [pseudo, setPseudo] = useState("");
   const [password, setPassword] = useState("");
 
-  const onLogin = (e: React.FormEvent) => {
-    e.preventDefault();
+  const onLogin = async () => {
     if (!pseudo || !password) {
       toast.error("Veuillez remplir tous les champs");
       return;
     }
-    
-    const success = handleLogin(pseudo, password);
-    if (success) {
-      toast.success("Connexion réussie !");
-      navigate("/wishlist");
+
+    // Récupère l'utilisateur par pseudo uniquement
+    const { data, error } = await supabase
+      .from("player")
+      .select("*")
+      .eq("name", pseudo)
+      .maybeSingle();
+
+    if (error || !data) {
+      toast.error("Pseudo ou mot de passe incorrect");
+      return;
     }
+
+    // Vérifie le mot de passe côté JS
+    if (data.mdp !== password) {
+      toast.error("Pseudo ou mot de passe incorrect");
+      return;
+    }
+
+    // Connexion réussie
+    login(data.name, data.isAdmin);
+    toast.success("Connexion réussie !");
+    navigate("/wishlist");
   };
 
-  const onRegister = (e: React.FormEvent) => {
-    e.preventDefault();
+  const onRegister = async () => {
     if (!pseudo || !password) {
       toast.error("Veuillez remplir tous les champs");
       return;
     }
-    
-    const success = handleRegister(pseudo, password);
-    if (success) {
-      toast.success("Compte créé avec succès !");
-      navigate("/wishlist");
+
+    // Vérifie si le pseudo existe déjà
+    const { data: existing } = await supabase
+      .from("player")
+      .select("name")
+      .eq("name", pseudo)
+      .single();
+
+    if (existing) {
+      toast.error("Ce pseudo est déjà utilisé");
+      return;
     }
+
+    // Crée le nouvel utilisateur (isAdmin = false par défaut)
+    const { data: newUser, error } = await supabase
+      .from("player")
+      .insert({ name: pseudo, mdp: password, isAdmin: false })
+      .select()
+      .single();
+
+    if (error || !newUser) {
+      toast.error("Erreur lors de la création du compte");
+      return;
+    }
+
+    login(newUser.name, newUser.isAdmin);
+    toast.success("Compte créé avec succès !");
+    navigate("/wishlist");
   };
 
   return (
@@ -66,7 +106,7 @@ const Login = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="space-y-4">
+          <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
             <div className="space-y-2">
               <Label htmlFor="pseudo">Pseudo</Label>
               <Input
@@ -78,7 +118,7 @@ const Login = () => {
                 className="border-primary/30 focus:border-primary"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">Mot de passe</Label>
               <Input
@@ -92,13 +132,13 @@ const Login = () => {
             </div>
 
             <div className="flex flex-col gap-2 pt-2">
-              <Button 
+              <Button
                 onClick={onLogin}
                 className="w-full bg-gradient-primary hover:opacity-90 shadow-glow-primary"
               >
                 Se connecter
               </Button>
-              <Button 
+              <Button
                 onClick={onRegister}
                 variant="outline"
                 className="w-full border-primary/30 hover:bg-primary/10"
