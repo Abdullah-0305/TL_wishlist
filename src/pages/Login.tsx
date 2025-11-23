@@ -61,7 +61,7 @@ const Login = () => {
           </div>
           <CardTitle className="text-2xl">Bienvenue sur Akatsushi</CardTitle>
           <CardDescription>
-            Connectez-vous ou créez un compte pour gérer votre wishlist
+            Connectez-vous pour gérer votre wishlist
           </CardDescription>
         </CardHeader>
         <CardContent>
