@@ -117,9 +117,23 @@ const Wishlist = () => {
 
       const updateData: any = { idRole: parseInt(role) };
 
-      if (!weaponLocked && selectedWeapon && !hasLootedArme) updateData.idArme = parseInt(selectedWeapon);
-      if (!armorLocked && selectedArmor && !hasLootedArmure) updateData.idArmure = parseInt(selectedArmor);
-      if (!accessoryLocked && selectedAccessory && !hasLootedAccessoire) updateData.idAccesoires = parseInt(selectedAccessory);
+      if (!weaponLocked) {
+        if (selectedWeapon) {
+          updateData.idArme = parseInt(selectedWeapon);
+        } else {
+          updateData.idArme = null; // si vide, on met null
+        }
+      }
+
+      if (!armorLocked) {
+        if (selectedArmor) updateData.idArmure = parseInt(selectedArmor);
+        else updateData.idArmure = null;
+      }
+
+      if (!accessoryLocked) {
+        if (selectedAccessory) updateData.idAccesoires = parseInt(selectedAccessory);
+        else updateData.idAccesoires = null;
+      }
 
       const { error } = await supabase
         .from("player")
@@ -184,6 +198,7 @@ const Wishlist = () => {
               </SelectTrigger>
 
               <SelectContent>
+                <SelectItem value="null">— Aucune —</SelectItem> {/* Option vide */}
                 {weapons.map(w => (
                   <SelectItem
                     key={w.id}
@@ -221,6 +236,7 @@ const Wishlist = () => {
               </SelectTrigger>
 
               <SelectContent>
+                <SelectItem value="null">— Aucune —</SelectItem> {/* Option vide */}
                 {armors.map(a => (
                   <SelectItem
                     key={a.id}
@@ -258,6 +274,7 @@ const Wishlist = () => {
               </SelectTrigger>
 
               <SelectContent>
+                <SelectItem value="null">— Aucune —</SelectItem> {/* Option vide */}
                 {accessories.map(acc => (
                   <SelectItem
                     key={acc.id}
