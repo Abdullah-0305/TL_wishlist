@@ -124,16 +124,29 @@ const Admin = () => {
 
   // ----------- GET BOSS COUNTS -------------
   const bossCounts = useMemo(() => {
-    const bosses: { armes: Record<string, number>; armures: Record<string, number>; accessoires: Record<string, number> } = {
-      armes: {},
-      armures: {},
-      accessoires: {}
-    };
+    const bosses: {
+      armes: Record<string, number>;
+      armures: Record<string, number>;
+      accessoires: Record<string, number>;
+    } = { armes: {}, armures: {}, accessoires: {} };
 
     players.forEach((p) => {
+      // Armes : pas de split, car une seule arme par boss
       if (p.armeBoss) bosses.armes[p.armeBoss] = (bosses.armes[p.armeBoss] || 0) + 1;
-      if (p.armureBoss) bosses.armures[p.armureBoss] = (bosses.armures[p.armureBoss] || 0) + 1;
-      if (p.accessoireBoss) bosses.accessoires[p.accessoireBoss] = (bosses.accessoires[p.accessoireBoss] || 0) + 1;
+
+      // Armures : split par ", " pour compter chaque boss
+      if (p.armureBoss) {
+        p.armureBoss.split(", ").forEach((boss) => {
+          bosses.armures[boss] = (bosses.armures[boss] || 0) + 1;
+        });
+      }
+
+      // Accessoires : idem
+      if (p.accessoireBoss) {
+        p.accessoireBoss.split(", ").forEach((boss) => {
+          bosses.accessoires[boss] = (bosses.accessoires[boss] || 0) + 1;
+        });
+      }
     });
 
     const filterEntries = (obj: Record<string, number>) =>
@@ -142,7 +155,7 @@ const Admin = () => {
     return {
       armes: filterEntries(bosses.armes),
       armures: filterEntries(bosses.armures),
-      accessoires: filterEntries(bosses.accessoires)
+      accessoires: filterEntries(bosses.accessoires),
     };
   }, [players]);
 

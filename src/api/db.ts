@@ -132,25 +132,26 @@ export async function getArmeBossById(id: string){
   return data?.nameBoss || null;
 }
 
-export async function getArmureBossById(id: string){
+// Récupérer tous les boss d'une armure
+export async function getArmureBossById(id: string) {
   const { data, error } = await supabase
-    .from("armures")
+    .from("armures_boss")
     .select("nameBoss")
-    .eq("id", id)
-    .maybeSingle();
+    .eq("idArmure", id);
 
-  if(error) throw error;
-  return data?.nameBoss || null;
+  if (error) throw error;
+  // Retourne une chaîne avec tous les boss séparés par ", "
+  return data?.map((d: any) => d.nameBoss).join(", ") || null;
 }
 
-export async function getAccessoireBossById(id: string){
+// Récupérer tous les boss d'un accessoire
+export async function getAccessoireBossById(id: string) {
   const { data, error } = await supabase
-    .from("accessoires")
+    .from("accessoires_boss")
     .select("nameBoss")
-    .eq("id", id)
-    .maybeSingle();
+    .eq("idAccessoire", id);
 
-  if(error) throw error;
-  return data?.nameBoss || null;
+  if (error) throw error;
+  return data?.map((d: any) => d.nameBoss).join(", ") || null;
 }
 
