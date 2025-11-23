@@ -281,43 +281,56 @@ const Admin = () => {
       </div>
 
       {/* FILTER BAR */}
-      <div className="flex flex-wrap items-center gap-4 p-4 bg-card border border-primary/20 rounded-xl shadow-sm">
-        <Filter className="h-5 w-5 text-primary" />
-        <select
-          className="bg-background border border-primary/30 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
-          value={selectedFilter}
-          onChange={(e) => setSelectedFilter(e.target.value)}
-        >
-          <option value="">— Filtrer par item —</option>
-          <optgroup label="Armes">
-            {armes.map((a) => (
-              <option key={a.id} value={a.name}>
-                {a.name}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Armures">
-            {armures.map((a) => (
-              <option key={a.id} value={a.name}>
-                {a.name}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Accessoires">
-            {accessoires.map((a) => (
-              <option key={a.id} value={a.name}>
-                {a.name}
-              </option>
-            ))}
-          </optgroup>
-        </select>
+      <div className="w-full p-4 bg-card border border-primary/20 rounded-xl shadow-sm">
 
-        {selectedFilter && (
-          <Button variant="outline" onClick={() => setSelectedFilter("")}>
-            Réinitialiser
-          </Button>
-        )}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+
+          {/* Icon */}
+          <div className="flex items-center gap-2">
+            <Filter className="h-5 w-5 text-primary" />
+            <span className="font-medium text-sm sm:hidden">Filtrer</span>
+          </div>
+
+          {/* Select */}
+          <select
+            className="flex-grow bg-background border border-primary/30 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
+            value={selectedFilter}
+            onChange={(e) => setSelectedFilter(e.target.value)}
+          >
+            <option value="">— Filtrer par item —</option>
+
+            <optgroup label="Armes">
+              {armes.map((a) => (
+                <option key={a.id} value={a.name}>{a.name}</option>
+              ))}
+            </optgroup>
+
+            <optgroup label="Armures">
+              {armures.map((a) => (
+                <option key={a.id} value={a.name}>{a.name}</option>
+              ))}
+            </optgroup>
+
+            <optgroup label="Accessoires">
+              {accessoires.map((a) => (
+                <option key={a.id} value={a.name}>{a.name}</option>
+              ))}
+            </optgroup>
+          </select>
+
+          {/* Reset button */}
+          {selectedFilter && (
+            <Button
+              variant="outline"
+              onClick={() => setSelectedFilter("")}
+              className="sm:ml-auto"
+            >
+              Réinitialiser
+            </Button>
+          )}
+        </div>
       </div>
+
 
       {/* PLAYERS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
