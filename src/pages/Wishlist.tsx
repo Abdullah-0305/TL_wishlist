@@ -8,6 +8,7 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "../lib/supabase";
 import { getArmes, getArmures, getAccessoires, getRoles } from "@/api/db";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface Item {
   id: number;
@@ -19,7 +20,6 @@ const Wishlist = () => {
   if (!user) return <Navigate to="/login" replace />;
 
   const [loading, setLoading] = useState(true);
-
   const [weapons, setWeapons] = useState<Item[]>([]);
   const [armors, setArmors] = useState<Item[]>([]);
   const [accessories, setAccessories] = useState<Item[]>([]);
@@ -38,11 +38,12 @@ const Wishlist = () => {
   const [hasLootedArmure, setHasLootedArmure] = useState(false);
   const [hasLootedAccessoire, setHasLootedAccessoire] = useState(false);
 
+  // --- Nouvel état pour le modal ---
+  const [modalOpen, setModalOpen] = useState(false);
+
   const loadData = async () => {
     try {
       setLoading(true);
-
-      // Récupération des items
       const { data: w } = await getArmes();
       const { data: a } = await getArmures();
       const { data: ac } = await getAccessoires();
@@ -53,7 +54,6 @@ const Wishlist = () => {
       setAccessories(ac || []);
       setRoles(r || []);
 
-      // Récupération du joueur
       const { data: player, error } = await supabase
         .from("player")
         .select("*")
@@ -66,10 +66,7 @@ const Wishlist = () => {
         return;
       }
 
-      // Role
       if (player.idRole) setRole(player.idRole.toString());
-
-      // Wishlist déjà choisie
       if (player.idArme) {
         setSelectedWeapon(player.idArme.toString());
         setWeaponLocked(true);
@@ -83,7 +80,6 @@ const Wishlist = () => {
         setAccessoryLocked(true);
       }
 
-      // Loots (3 bools)
       setHasLootedArme(player.has_looted_arme);
       setHasLootedArmure(player.has_looted_armure);
       setHasLootedAccessoire(player.has_looted_accessoires);
@@ -100,12 +96,18 @@ const Wishlist = () => {
     loadData();
   }, []);
 
-  const handleSave = async () => {
+  // --- On ouvre le modal au lieu de sauvegarder directement ---
+  const handleSave = () => {
     if (!role) {
       toast.error("Vous devez choisir un rôle.");
       return;
     }
+    setModalOpen(true);
+  };
 
+  // --- Fonction pour confirmer la sauvegarde ---
+  const confirmSave = async () => {
+    setModalOpen(false);
     try {
       const { data: player, error: playerError } = await supabase
         .from("player")
@@ -116,24 +118,9 @@ const Wishlist = () => {
       if (playerError || !player) throw playerError || new Error("Joueur introuvable");
 
       const updateData: any = { idRole: parseInt(role) };
-
-      if (!weaponLocked) {
-        if (selectedWeapon) {
-          updateData.idArme = parseInt(selectedWeapon);
-        } else {
-          updateData.idArme = null; // si vide, on met null
-        }
-      }
-
-      if (!armorLocked) {
-        if (selectedArmor) updateData.idArmure = parseInt(selectedArmor);
-        else updateData.idArmure = null;
-      }
-
-      if (!accessoryLocked) {
-        if (selectedAccessory) updateData.idAccesoires = parseInt(selectedAccessory);
-        else updateData.idAccesoires = null;
-      }
+      if (!weaponLocked) updateData.idArme = selectedWeapon ? parseInt(selectedWeapon) : null;
+      if (!armorLocked) updateData.idArmure = selectedArmor ? parseInt(selectedArmor) : null;
+      if (!accessoryLocked) updateData.idAccesoires = selectedAccessory ? parseInt(selectedAccessory) : null;
 
       const { error } = await supabase
         .from("player")
@@ -154,7 +141,7 @@ const Wishlist = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-
+      {/* --- Le reste du code reste inchangé --- */}
       {/* ROLE */}
       <Card className="border-primary/20">
         <CardHeader>
@@ -177,8 +164,8 @@ const Wishlist = () => {
         </CardContent>
       </Card>
 
+      {/* ITEMS */}
       <div className="grid md:grid-cols-3 gap-6">
-
         {/* ARME */}
         <Card>
           <CardHeader>
@@ -188,30 +175,23 @@ const Wishlist = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <Select
-              disabled={weaponLocked}
-              value={selectedWeapon}
-              onValueChange={setSelectedWeapon}
-            >
+            <Select disabled={weaponLocked} value={selectedWeapon} onValueChange={setSelectedWeapon}>
               <SelectTrigger className={weaponLocked ? "opacity-50" : ""}>
                 <SelectValue placeholder="Choisir une arme" />
               </SelectTrigger>
-
               <SelectContent>
-                <SelectItem value="null">— Aucune —</SelectItem> {/* Option vide */}
+                <SelectItem value="null">— Aucune —</SelectItem>
                 {weapons.map(w => (
                   <SelectItem
                     key={w.id}
                     value={w.id.toString()}
                     className={hasLootedArme && selectedWeapon == w.id.toString() ? "text-purple-400" : ""}
                   >
-                    {w.name}
-                    {hasLootedArme && selectedWeapon == w.id.toString() && " — déjà loot"}
+                    {w.name} {hasLootedArme && selectedWeapon == w.id.toString() && " — déjà loot"}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-
             {weaponLocked && <p className="text-xs text-red-400 mt-2">Déjà choisi</p>}
             {hasLootedArme && <p className="text-xs text-purple-400 mt-1">Tu as déjà loot une arme</p>}
           </CardContent>
@@ -226,30 +206,23 @@ const Wishlist = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <Select
-              disabled={armorLocked}
-              value={selectedArmor}
-              onValueChange={setSelectedArmor}
-            >
+            <Select disabled={armorLocked} value={selectedArmor} onValueChange={setSelectedArmor}>
               <SelectTrigger className={armorLocked ? "opacity-50" : ""}>
                 <SelectValue placeholder="Choisir une armure" />
               </SelectTrigger>
-
               <SelectContent>
-                <SelectItem value="null">— Aucune —</SelectItem> {/* Option vide */}
+                <SelectItem value="null">— Aucune —</SelectItem>
                 {armors.map(a => (
                   <SelectItem
                     key={a.id}
                     value={a.id.toString()}
                     className={hasLootedArmure && selectedArmor == a.id.toString() ? "text-purple-400" : ""}
                   >
-                    {a.name}
-                    {hasLootedArmure && selectedArmor == a.id.toString() && " — déjà loot"}
+                    {a.name} {hasLootedArmure && selectedArmor == a.id.toString() && " — déjà loot"}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-
             {armorLocked && <p className="text-xs text-red-400 mt-2">Déjà choisi</p>}
             {hasLootedArmure && <p className="text-xs text-purple-400 mt-1">Tu as déjà loot une armure</p>}
           </CardContent>
@@ -264,30 +237,23 @@ const Wishlist = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <Select
-              disabled={accessoryLocked}
-              value={selectedAccessory}
-              onValueChange={setSelectedAccessory}
-            >
+            <Select disabled={accessoryLocked} value={selectedAccessory} onValueChange={setSelectedAccessory}>
               <SelectTrigger className={accessoryLocked ? "opacity-50" : ""}>
                 <SelectValue placeholder="Choisir un accessoire" />
               </SelectTrigger>
-
               <SelectContent>
-                <SelectItem value="null">— Aucune —</SelectItem> {/* Option vide */}
+                <SelectItem value="null">— Aucune —</SelectItem>
                 {accessories.map(acc => (
                   <SelectItem
                     key={acc.id}
                     value={acc.id.toString()}
                     className={hasLootedAccessoire && selectedAccessory == acc.id.toString() ? "text-purple-400" : ""}
                   >
-                    {acc.name}
-                    {hasLootedAccessoire && selectedAccessory == acc.id.toString() && " — déjà loot"}
+                    {acc.name} {hasLootedAccessoire && selectedAccessory == acc.id.toString() && " — déjà loot"}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-
             {accessoryLocked && <p className="text-xs text-red-400 mt-2">Déjà choisi</p>}
             {hasLootedAccessoire && <p className="text-xs text-purple-400 mt-1">Tu as déjà loot un accessoire</p>}
           </CardContent>
@@ -299,6 +265,23 @@ const Wishlist = () => {
           <Save className="mr-2" /> Sauvegarder
         </Button>
       </div>
+
+      {/* --- MODAL DE CONFIRMATION --- */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="bg-card border-primary/30 max-w-sm mx-auto">
+          <DialogHeader>
+            <DialogTitle>Confirmer la sauvegarde</DialogTitle>
+            <DialogDescription>
+              Vos items sélectionnés ne pourront plus être modifiés. <br />
+              Êtes-vous sûr de vouloir sauvegarder ?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end mt-4 gap-2">
+            <Button variant="outline" onClick={() => setModalOpen(false)}>Annuler</Button>
+            <Button className="bg-gradient-primary" onClick={confirmSave}>Confirmer</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
