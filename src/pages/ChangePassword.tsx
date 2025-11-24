@@ -15,17 +15,15 @@ const ChangePassword = () => {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [showOld, setShowOld] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleChange = async () => {
-    if (!oldPassword || !newPassword || !confirm) {
+    if (!newPassword || !confirm) {
       toast.error("Tous les champs sont obligatoires");
       return;
     }
@@ -49,12 +47,6 @@ const ChangePassword = () => {
 
       if (error || !player) {
         toast.error("Utilisateur introuvable");
-        return;
-      }
-
-      const validOld = await bcrypt.compare(oldPassword, player.mdp);
-      if (!validOld) {
-        toast.error("L'ancien mot de passe est incorrect");
         return;
       }
 
@@ -113,7 +105,6 @@ const ChangePassword = () => {
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {renderPasswordInput(oldPassword, setOldPassword, "Ancien mot de passe", showOld, setShowOld)}
           {renderPasswordInput(newPassword, setNewPassword, "Nouveau mot de passe", showNew, setShowNew)}
           {renderPasswordInput(confirm, setConfirm, "Confirmer le mot de passe", showConfirm, setShowConfirm)}
 

@@ -406,7 +406,7 @@ const Admin = () => {
                     {name !== "Aucune" && name !== "Aucun" && (
                       <div className="flex gap-1">
                         <Button size="sm" onClick={() => openModal(player.id, type)}>
-                          {hasLooted ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                          {hasLooted ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
                         </Button>
                         <Button
                           size="sm"
