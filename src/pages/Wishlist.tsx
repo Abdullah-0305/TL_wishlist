@@ -38,7 +38,6 @@ const Wishlist = () => {
   const [hasLootedArmure, setHasLootedArmure] = useState(false);
   const [hasLootedAccessoire, setHasLootedAccessoire] = useState(false);
 
-  // --- Nouvel état pour le modal ---
   const [modalOpen, setModalOpen] = useState(false);
 
   const loadData = async () => {
@@ -96,7 +95,6 @@ const Wishlist = () => {
     loadData();
   }, []);
 
-  // --- On ouvre le modal au lieu de sauvegarder directement ---
   const handleSave = () => {
     if (!role) {
       toast.error("Vous devez choisir un rôle.");
@@ -105,7 +103,6 @@ const Wishlist = () => {
     setModalOpen(true);
   };
 
-  // --- Fonction pour confirmer la sauvegarde ---
   const confirmSave = async () => {
     setModalOpen(false);
     try {
@@ -141,7 +138,41 @@ const Wishlist = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* --- Le reste du code reste inchangé --- */}
+
+      {/* 📌 RÈGLES DE LOOT */}
+      <Card className="border-primary/30 shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-xl">📜 Rappel des règles de Loot</CardTitle>
+          <CardDescription>
+            Important avant de sélectionner vos objets
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-4 text-sm leading-relaxed">
+          <p>
+            💠 Vous pouvez mettre dans la wishlist <b>un seul item pour</b> les Armes, les Armures et les Accessoires.
+            <br />
+            🔒 Une fois la wishlist validée, <b>vous ne pourrez plus modifier vos choix</b>.
+          </p>
+
+          <div className="border-t border-primary/20 pt-4 space-y-3">
+            <h3 className="font-semibold text-lg">💎 Règles de Loot (Boss de Guilde)</h3>
+
+            <p><strong>1. Centralisation des Loots</strong><br />
+            Tous les loots des Boss de Guilde sont envoyés au Coffre de Guilde. La distribution est ensuite gérée par un membre de la Co-Gestion.</p>
+
+            <p><strong>2. La Wishlist</strong><br />
+            Vous devez inscrire vos souhaits : Classe, Arme/Armure/Accessoire voulu.</p>
+
+            <p><strong>3. Attribution et Équité</strong><br />
+            Priorité aux joueurs présents, anciens et actifs. Une fois un loot obtenu, un délai de 7 jours est requis avant de pouvoir en recevoir un autre.</p>
+
+            <p><strong>4. Distribution & Vocal Obligatoire</strong><br />
+            Le vocal Discord est obligatoire lors des distributions de loots.</p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* ROLE */}
       <Card className="border-primary/20">
         <CardHeader>
@@ -266,7 +297,7 @@ const Wishlist = () => {
         </Button>
       </div>
 
-      {/* --- MODAL DE CONFIRMATION --- */}
+      {/* MODAL DE CONFIRMATION */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="bg-card border-primary/30 max-w-sm mx-auto">
           <DialogHeader>
