@@ -59,7 +59,6 @@ const Admin = () => {
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
   const [target, setTarget] = useState<{ playerId: string; itemType: "arme" | "armure" | "accessoire" } | null>(null);
 
-  // Modal de retrait
   const [removeModalOpen, setRemoveModalOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<{ playerId: string; itemType: "arme" | "armure" | "accessoire" } | null>(null);
 
@@ -131,17 +130,14 @@ const Admin = () => {
     } = { armes: {}, armures: {}, accessoires: {} };
 
     players.forEach((p) => {
-      // Armes : pas de split, car une seule arme par boss
       if (p.armeBoss) bosses.armes[p.armeBoss] = (bosses.armes[p.armeBoss] || 0) + 1;
 
-      // Armures : split par ", " pour compter chaque boss
       if (p.armureBoss) {
         p.armureBoss.split(", ").forEach((boss) => {
           bosses.armures[boss] = (bosses.armures[boss] || 0) + 1;
         });
       }
 
-      // Accessoires : idem
       if (p.accessoireBoss) {
         p.accessoireBoss.split(", ").forEach((boss) => {
           bosses.accessoires[boss] = (bosses.accessoires[boss] || 0) + 1;
@@ -238,6 +234,7 @@ const Admin = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 p-4">
+
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -298,13 +295,11 @@ const Admin = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
 
-          {/* Icon */}
           <div className="flex items-center gap-2">
             <Filter className="h-5 w-5 text-primary" />
             <span className="font-medium text-sm sm:hidden">Filtrer</span>
           </div>
 
-          {/* Select */}
           <select
             className="flex-grow bg-background border border-primary/30 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
             value={selectedFilter}
@@ -331,7 +326,6 @@ const Admin = () => {
             </optgroup>
           </select>
 
-          {/* Reset button */}
           {selectedFilter && (
             <Button
               variant="outline"
@@ -343,7 +337,6 @@ const Admin = () => {
           )}
         </div>
       </div>
-
 
       {/* PLAYERS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -426,89 +419,102 @@ const Admin = () => {
       </div>
 
       {/* CONFIRM BLOCK MODAL */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="bg-card border-primary/30 max-w-sm mx-auto">
-          <DialogHeader>
-            <DialogTitle>Bloquer l'item</DialogTitle>
-            <DialogDescription>
-              {target && (
-                <>
-                  Bloquer{" "}
-                  <strong>
-                    {target.itemType === "arme"
-                      ? "l'arme"
-                      : target.itemType === "armure"
-                      ? "l'armure"
-                      : "l'accessoire"}
-                  </strong>{" "}
-                  pour <strong>{players.find((p) => p.id === target.playerId)?.name}</strong> ?
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
+      {modalOpen && (
+        <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+          <DialogContent className="bg-card border-primary/30 max-w-sm mx-auto">
+            <DialogHeader>
+              <DialogTitle>Bloquer l'item</DialogTitle>
+              <DialogDescription>
+                {target && (
+                  <>
+                    Bloquer{" "}
+                    <strong>
+                      {target.itemType === "arme"
+                        ? "l'arme"
+                        : target.itemType === "armure"
+                        ? "l'armure"
+                        : "l'accessoire"}
+                    </strong>{" "}
+                    pour <strong>{players.find((p) => p.id === target.playerId)?.name}</strong> ?
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="flex justify-end mt-4 gap-2">
-            <Button variant="outline" onClick={() => setModalOpen(false)}>
-              Annuler
-            </Button>
-            <Button onClick={confirmBlock} className="bg-gradient-primary">
-              Confirmer
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+            <div className="flex justify-end mt-4 gap-2">
+              <Button variant="outline" onClick={() => setModalOpen(false)}>
+                Annuler
+              </Button>
+              <Button onClick={confirmBlock} className="bg-gradient-primary">
+                Confirmer
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* CONFIRM REMOVE MODAL */}
-      <Dialog open={removeModalOpen} onOpenChange={setRemoveModalOpen}>
-        <DialogContent className="bg-card border-primary/30 max-w-sm mx-auto">
-          <DialogHeader>
-            <DialogTitle>Retirer l'item</DialogTitle>
-            <DialogDescription>
-              {removeTarget && (
-                <>
-                  Retirer{" "}
-                  <strong>
-                    {removeTarget.itemType === "arme"
-                      ? "l'arme"
-                      : removeTarget.itemType === "armure"
-                      ? "l'armure"
-                      : "l'accessoire"}
-                  </strong>{" "}
-                  pour <strong>{players.find((p) => p.id === removeTarget.playerId)?.name}</strong> ?
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end mt-4 gap-2">
-            <Button variant="outline" onClick={() => setRemoveModalOpen(false)}>
-              Annuler
-            </Button>
-            <Button className="bg-purple-600 text-white hover:bg-purple-700" onClick={confirmRemove}>
-              Confirmer
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {removeModalOpen && (
+        <Dialog open={removeModalOpen} onOpenChange={setRemoveModalOpen}>
+          <DialogContent className="bg-card border-primary/30 max-w-sm mx-auto">
+            <DialogHeader>
+              <DialogTitle>Retirer l'item</DialogTitle>
+              <DialogDescription>
+                {removeTarget && (
+                  <>
+                    Retirer{" "}
+                    <strong>
+                      {removeTarget.itemType === "arme"
+                        ? "l'arme"
+                        : removeTarget.itemType === "armure"
+                        ? "l'armure"
+                        : "l'accessoire"}
+                    </strong>{" "}
+                    pour <strong>{players.find((p) => p.id === removeTarget.playerId)?.name}</strong> ?
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end mt-4 gap-2">
+              <Button variant="outline" onClick={() => setRemoveModalOpen(false)}>
+                Annuler
+              </Button>
+              <Button
+                className="bg-purple-600 text-white hover:bg-purple-700"
+                onClick={confirmRemove}
+              >
+                Confirmer
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* UNLOCK ALL MODAL */}
-      <Dialog open={unlockModalOpen} onOpenChange={setUnlockModalOpen}>
-        <DialogContent className="bg-card border-primary/30 max-w-sm mx-auto">
-          <DialogHeader>
-            <DialogTitle>Débloquer tous les items</DialogTitle>
-            <DialogDescription>
-              Réinitialiser <strong>toutes</strong> les wishlists ?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end mt-4 gap-2">
-            <Button variant="outline" onClick={() => setUnlockModalOpen(false)}>
-              Annuler
-            </Button>
-            <Button className="bg-purple-600 text-white hover:bg-purple-700" onClick={unlockAll}>
-              Confirmer
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {unlockModalOpen && (
+        <Dialog open={unlockModalOpen} onOpenChange={setUnlockModalOpen}>
+          <DialogContent className="bg-card border-primary/30 max-w-sm mx-auto">
+            <DialogHeader>
+              <DialogTitle>Débloquer tous les items</DialogTitle>
+              <DialogDescription>
+                Réinitialiser <strong>toutes</strong> les wishlists ?
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end mt-4 gap-2">
+              <Button variant="outline" onClick={() => setUnlockModalOpen(false)}>
+                Annuler
+              </Button>
+              <Button
+                className="bg-purple-600 text-white hover:bg-purple-700"
+                onClick={unlockAll}
+              >
+                Confirmer
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
     </div>
   );
 };
