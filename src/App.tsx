@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import Login from "./pages/Login";
 import Wishlist from "./pages/Wishlist";
-import Admin from "./pages/Admin";
+import Admin from "./pages/Admin/Admin";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import ChangePassword from "./pages/ChangePassword";
