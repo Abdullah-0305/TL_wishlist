@@ -121,37 +121,47 @@ export async function getColorRoleById(id: string){
   return data?.color || null;
 }
 
-export async function getArmeBossById(id: string){
+type BossResult = {
+  boss: {
+    name: string;
+  } | null;
+};
+
+export async function getArmeBossById(id: string) {
   const { data, error } = await supabase
     .from("armes")
-    .select("nameBoss")
+    .select("boss:boss(name)")
     .eq("id", id)
-    .maybeSingle();
+    .maybeSingle<BossResult>();
 
-  if(error) throw error;
-  return data?.nameBoss || null;
+  if (error) throw error;
+
+  return data?.boss?.name ?? null;
 }
 
 // Récupérer tous les boss d'une armure
 export async function getArmureBossById(id: string) {
   const { data, error } = await supabase
     .from("armures_boss")
-    .select("nameBoss")
-    .eq("idArmure", id);
+    .select("boss:boss(name)")
+    .eq("id", id)
+    .maybeSingle<BossResult>();
 
   if (error) throw error;
-  // Retourne une chaîne avec tous les boss séparés par ", "
-  return data?.map((d: any) => d.nameBoss).join(", ") || null;
+
+  return data?.boss?.name ?? null;
 }
 
 // Récupérer tous les boss d'un accessoire
 export async function getAccessoireBossById(id: string) {
   const { data, error } = await supabase
     .from("accessoires_boss")
-    .select("nameBoss")
-    .eq("idAccessoire", id);
+    .select("boss:boss(name)")
+    .eq("id", id)
+    .maybeSingle<BossResult>();
 
   if (error) throw error;
-  return data?.map((d: any) => d.nameBoss).join(", ") || null;
+
+  return data?.boss?.name ?? null;
 }
 
