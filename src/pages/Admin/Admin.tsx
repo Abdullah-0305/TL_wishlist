@@ -206,6 +206,14 @@ const Admin: React.FC = () => {
     setFilteredPlayers(resetPlayers);
   };
 
+    // ----------- RESET PLAYER FILTER -------------
+  const setAllPresence = () => {
+    const resetPlayers = players.map(p => ({ ...p, isPresent: true }));
+    setPlayers(resetPlayers);
+    setFilteredPlayers(resetPlayers);
+  };
+
+
   // ----------- GET BOSS COUNTS -------------
   const bossCounts = useMemo(() => {
     const bosses: {
@@ -357,6 +365,13 @@ const Admin: React.FC = () => {
           className="px-4 pt-1 pb-1 rounded bg-primary/90 text-primary-foreground font-medium hover:bg-primary/80 transition-colors w-full sm:w-auto"
         >
           Reset Présence
+        </button>
+
+        <button
+          onClick={setAllPresence}
+          className="px-4 pt-1 pb-1 rounded bg-primary/90 text-primary-foreground font-medium hover:bg-primary/80 transition-colors w-full sm:w-auto"
+        >
+          Tout mettre Présent
         </button>
       </div>
 
