@@ -146,39 +146,42 @@ const Admin: React.FC = () => {
     setFilteredPlayers(results);
   }, [selectedFilter, players]);
 
-  // ----------- GET BOSS COUNTS -------------
-  const bossCounts = useMemo(() => {
-    const bosses: {
-      armes: Record<string, number>;
-      armures: Record<string, number>;
-      accessoires: Record<string, number>;
-    } = { armes: {}, armures: {}, accessoires: {} };
+// ----------- GET BOSS COUNTS -------------
+const bossCounts = useMemo(() => {
+  const bosses: {
+    armes: Record<string, number>;
+    armures: Record<string, number>;
+    accessoires: Record<string, number>;
+  } = { armes: {}, armures: {}, accessoires: {} };
 
-    players.forEach((p) => {
-      if (p.armeBoss) bosses.armes[p.armeBoss] = (bosses.armes[p.armeBoss] || 0) + 1;
+  players.forEach((p) => {
+    if (p.armeBoss)
+      bosses.armes[p.armeBoss] = (bosses.armes[p.armeBoss] || 0) + 1;
 
-      if (p.armureBoss) {
-        p.armureBoss.split(", ").forEach((boss) => {
-          bosses.armures[boss] = (bosses.armures[boss] || 0) + 1;
-        });
-      }
+    if (p.armureBoss) {
+      p.armureBoss.split(", ").forEach((boss) => {
+        bosses.armures[boss] = (bosses.armures[boss] || 0) + 1;
+      });
+    }
 
-      if (p.accessoireBoss) {
-        p.accessoireBoss.split(", ").forEach((boss) => {
-          bosses.accessoires[boss] = (bosses.accessoires[boss] || 0) + 1;
-        });
-      }
-    });
+    if (p.accessoireBoss) {
+      p.accessoireBoss.split(", ").forEach((boss) => {
+        bosses.accessoires[boss] = (bosses.accessoires[boss] || 0) + 1;
+      });
+    }
+  });
 
-    const filterEntries = (obj: Record<string, number>) =>
-      Object.entries(obj).filter(([, count]) => count > 0) as [string, number][];
+  const toSortedEntries = (obj: Record<string, number>) =>
+    Object.entries(obj)
+      .filter(([, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1]); // tri décroissant
 
-    return {
-      armes: filterEntries(bosses.armes),
-      armures: filterEntries(bosses.armures),
-      accessoires: filterEntries(bosses.accessoires),
-    };
-  }, [players]);
+  return {
+    armes: toSortedEntries(bosses.armes),
+    armures: toSortedEntries(bosses.armures),
+    accessoires: toSortedEntries(bosses.accessoires),
+  };
+}, [players]);
 
   // -------- BLOCK ----------
   const openModal = (playerId: string, itemType: "arme" | "armure" | "accessoire") => {
