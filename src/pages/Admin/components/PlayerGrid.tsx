@@ -3,7 +3,8 @@ import PlayerCard from "./PlayerCard";
 const PlayerGrid = ({
   players,
   openModal,
-  openRemoveModal
+  openRemoveModal,
+  togglePresence
 }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -13,6 +14,7 @@ const PlayerGrid = ({
           player={player}
           openModal={openModal}
           openRemoveModal={openRemoveModal}
+          togglePresence={togglePresence}
         />
       ))}
     </div>

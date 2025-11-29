@@ -47,6 +47,7 @@ interface Player {
   idRole?: string | null;
   roleName?: string;
   roleColor?: string;
+  isPresent?: boolean; // ← ajout pour présence
 }
 
 const Admin: React.FC = () => {
@@ -63,8 +64,6 @@ const Admin: React.FC = () => {
 
   // Filter
   const [selectedFilter, setSelectedFilter] = useState<string>("");
-
-  // Boss filter
   const [selectedBoss, setSelectedBoss] = useState<string | null>(null);
 
   // Modals & targets
@@ -106,6 +105,7 @@ const Admin: React.FC = () => {
       const playersWithNames = await Promise.all(
         data.map(async (p: any) => ({
           ...p,
+          isPresent: true,
           armeName: p.idArme ? await getArmeNameById(p.idArme) : "Aucune",
           armureName: p.idArmure ? await getArmureNameById(p.idArmure) : "Aucune",
           accessoireName: p.idAccesoires ? await getAccessoireNameById(p.idAccesoires) : "Aucun",
@@ -130,7 +130,7 @@ const Admin: React.FC = () => {
     loadItems();
   }, []);
 
-  // ----------- BUTTON FILTER -------------
+  // ----------- FILTER PLAYERS -------------
   useEffect(() => {
     if (selectedBoss) return; // priorité au filtre boss
 
@@ -154,19 +154,58 @@ const Admin: React.FC = () => {
     setSelectedBoss(boss);
 
     const filtered = players.filter(p =>
-      (p.armeBoss?.includes(boss) ||
-      p.armureBoss?.includes(boss) ||
-      p.accessoireBoss?.includes(boss))
+      p.isPresent && (p.armeBoss?.includes(boss) ||
+                      p.armureBoss?.includes(boss) ||
+                      p.accessoireBoss?.includes(boss))
     );
 
     setFilteredPlayers(filtered);
-};
+  };
 
   // ----------- RESET BOSS FILTER -------------
   const resetBossFilter = () => {
     setSelectedBoss(null);
-    setFilteredPlayers(players);
+    setFilteredPlayers(players.filter(p => p.isPresent));
   };
+
+  // ----------- TOGGLE PRESENCE -------------
+  const togglePresence = (playerId: string) => {
+    const updated = players.map(p =>
+      p.id === playerId ? { ...p, isPresent: !p.isPresent } : p
+    );
+
+    setPlayers(updated);
+
+    // Mettre à jour filteredPlayers si boss filter actif
+    if (selectedBoss) {
+      const filtered = updated.filter(p =>
+        p.isPresent &&
+        (p.armeBoss?.includes(selectedBoss) ||
+         p.armureBoss?.includes(selectedBoss) ||
+         p.accessoireBoss?.includes(selectedBoss))
+      );
+      setFilteredPlayers(filtered);
+    } else if (selectedFilter) {
+      const filtered = updated.filter(
+        (p) =>
+          p.isPresent &&
+          (p.armeName === selectedFilter ||
+           p.armureName === selectedFilter ||
+           p.accessoireName === selectedFilter)
+      );
+      setFilteredPlayers(filtered);
+    } else {
+      setFilteredPlayers(updated.filter(p => p.isPresent));
+    }
+  };
+
+  // ----------- RESET PLAYER FILTER -------------
+  const resetPresence = () => {
+    const resetPlayers = players.map(p => ({ ...p, isPresent: true }));
+    setPlayers(resetPlayers);
+    setFilteredPlayers(resetPlayers);
+  };
+
 
   // ----------- GET BOSS COUNTS -------------
   const bossCounts = useMemo(() => {
@@ -176,22 +215,24 @@ const Admin: React.FC = () => {
       accessoires: Record<string, number>;
     } = { armes: {}, armures: {}, accessoires: {} };
 
-    players.forEach((p) => {
-      if (p.armeBoss)
-        bosses.armes[p.armeBoss] = (bosses.armes[p.armeBoss] || 0) + 1;
+    players
+      .filter(p => p.isPresent) // ← ne compter que les présents
+      .forEach((p) => {
+        if (p.armeBoss)
+          bosses.armes[p.armeBoss] = (bosses.armes[p.armeBoss] || 0) + 1;
 
-      if (p.armureBoss) {
-        p.armureBoss.split(", ").forEach((boss) => {
-          bosses.armures[boss] = (bosses.armures[boss] || 0) + 1;
-        });
-      }
+        if (p.armureBoss) {
+          p.armureBoss.split(", ").forEach((boss) => {
+            bosses.armures[boss] = (bosses.armures[boss] || 0) + 1;
+          });
+        }
 
-      if (p.accessoireBoss) {
-        p.accessoireBoss.split(", ").forEach((boss) => {
-          bosses.accessoires[boss] = (bosses.accessoires[boss] || 0) + 1;
-        });
-      }
-    });
+        if (p.accessoireBoss) {
+          p.accessoireBoss.split(", ").forEach((boss) => {
+            bosses.accessoires[boss] = (bosses.accessoires[boss] || 0) + 1;
+          });
+        }
+      });
 
     const entrySort = (obj: Record<string, number>) =>
       Object.entries(obj)
@@ -289,25 +330,36 @@ const Admin: React.FC = () => {
     <div className="max-w-6xl mx-auto space-y-6 p-4">
       <Header onUnlockAll={() => setUnlockModalOpen(true)} />
 
-       <BossCounts
+      <BossCounts
         bossCounts={bossCounts}
         selectedBoss={selectedBoss}
         onBossClick={handleBossClick}
         onReset={resetBossFilter}
       />
 
-      <FilterBar
-        selectedFilter={selectedFilter}
-        setSelectedFilter={setSelectedFilter}
-        armes={armes}
-        armures={armures}
-        accessoires={accessoires}
-      />
+      {/* Section filtres + reset */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <FilterBar
+          selectedFilter={selectedFilter}
+          setSelectedFilter={setSelectedFilter}
+          armes={armes}
+          armures={armures}
+          accessoires={accessoires}
+        />
+
+        <button
+          onClick={resetPresence}
+          className="px-4 pt-1 pb-1 rounded bg-primary/90 text-primary-foreground font-medium hover:bg-primary/80 transition-colors w-full sm:w-auto"
+        >
+          Reset Présence
+        </button>
+      </div>
 
       <PlayerGrid
         players={filteredPlayers}
         openModal={openModal}
         openRemoveModal={openRemoveModal}
+        togglePresence={togglePresence}
       />
 
       <BlockModal
