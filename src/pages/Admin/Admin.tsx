@@ -10,8 +10,7 @@ import FilterBar from "./components/FilterBar";
 import PlayerGrid from "./components/PlayerGrid";
 import BlockModal, { BlockTarget } from "./components/BlockModal";
 import RemoveModal, { RemoveTarget } from "./components/RemoveModal";
-import UnlockAllModal from "./components/UnlockAllModal";
-import { UnlockAllTarget } from "./components/UnlockAllModal";
+import UnlockAllModal, { UnlockAllTarget } from "./components/UnlockAllModal";
 
 import {
   getPlayers,
@@ -64,6 +63,9 @@ const Admin: React.FC = () => {
 
   // Filter
   const [selectedFilter, setSelectedFilter] = useState<string>("");
+
+  // Boss filter
+  const [selectedBoss, setSelectedBoss] = useState<string | null>(null);
 
   // Modals & targets
   const [modalOpen, setModalOpen] = useState(false);
@@ -126,11 +128,12 @@ const Admin: React.FC = () => {
   useEffect(() => {
     loadPlayers();
     loadItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ----------- APPLY FILTER -------------
+  // ----------- BUTTON FILTER -------------
   useEffect(() => {
+    if (selectedBoss) return; // priorité au filtre boss
+
     if (!selectedFilter) {
       setFilteredPlayers(players);
       return;
@@ -144,44 +147,63 @@ const Admin: React.FC = () => {
     );
 
     setFilteredPlayers(results);
-  }, [selectedFilter, players]);
+  }, [selectedFilter, players, selectedBoss]);
 
-// ----------- GET BOSS COUNTS -------------
-const bossCounts = useMemo(() => {
-  const bosses: {
-    armes: Record<string, number>;
-    armures: Record<string, number>;
-    accessoires: Record<string, number>;
-  } = { armes: {}, armures: {}, accessoires: {} };
+  // ----------- FILTER BY BOSS -------------
+  const handleBossClick = (boss: string) => {
+    setSelectedBoss(boss);
 
-  players.forEach((p) => {
-    if (p.armeBoss)
-      bosses.armes[p.armeBoss] = (bosses.armes[p.armeBoss] || 0) + 1;
+    const filtered = players.filter(p =>
+      (p.armeBoss?.includes(boss) ||
+      p.armureBoss?.includes(boss) ||
+      p.accessoireBoss?.includes(boss))
+    );
 
-    if (p.armureBoss) {
-      p.armureBoss.split(", ").forEach((boss) => {
-        bosses.armures[boss] = (bosses.armures[boss] || 0) + 1;
-      });
-    }
+    setFilteredPlayers(filtered);
+};
 
-    if (p.accessoireBoss) {
-      p.accessoireBoss.split(", ").forEach((boss) => {
-        bosses.accessoires[boss] = (bosses.accessoires[boss] || 0) + 1;
-      });
-    }
-  });
-
-  const toSortedEntries = (obj: Record<string, number>) =>
-    Object.entries(obj)
-      .filter(([, count]) => count > 0)
-      .sort((a, b) => b[1] - a[1]); // tri décroissant
-
-  return {
-    armes: toSortedEntries(bosses.armes),
-    armures: toSortedEntries(bosses.armures),
-    accessoires: toSortedEntries(bosses.accessoires),
+  // ----------- RESET BOSS FILTER -------------
+  const resetBossFilter = () => {
+    setSelectedBoss(null);
+    setFilteredPlayers(players);
   };
-}, [players]);
+
+  // ----------- GET BOSS COUNTS -------------
+  const bossCounts = useMemo(() => {
+    const bosses: {
+      armes: Record<string, number>;
+      armures: Record<string, number>;
+      accessoires: Record<string, number>;
+    } = { armes: {}, armures: {}, accessoires: {} };
+
+    players.forEach((p) => {
+      if (p.armeBoss)
+        bosses.armes[p.armeBoss] = (bosses.armes[p.armeBoss] || 0) + 1;
+
+      if (p.armureBoss) {
+        p.armureBoss.split(", ").forEach((boss) => {
+          bosses.armures[boss] = (bosses.armures[boss] || 0) + 1;
+        });
+      }
+
+      if (p.accessoireBoss) {
+        p.accessoireBoss.split(", ").forEach((boss) => {
+          bosses.accessoires[boss] = (bosses.accessoires[boss] || 0) + 1;
+        });
+      }
+    });
+
+    const entrySort = (obj: Record<string, number>) =>
+      Object.entries(obj)
+        .filter(([, count]) => count > 0)
+        .sort((a, b) => b[1] - a[1]);
+
+    return {
+      armes: entrySort(bosses.armes),
+      armures: entrySort(bosses.armures),
+      accessoires: entrySort(bosses.accessoires)
+    };
+  }, [players]);
 
   // -------- BLOCK ----------
   const openModal = (playerId: string, itemType: "arme" | "armure" | "accessoire") => {
@@ -208,7 +230,7 @@ const bossCounts = useMemo(() => {
     }
   };
 
-  // -------- REMOVE ITEM ----------
+  // -------- REMOVE ----------
   const openRemoveModal = (playerId: string, itemType: "arme" | "armure" | "accessoire") => {
     const player = players.find((p) => p.id === playerId);
     setRemoveTarget({ playerId, itemType, playerName: player?.name });
@@ -267,7 +289,12 @@ const bossCounts = useMemo(() => {
     <div className="max-w-6xl mx-auto space-y-6 p-4">
       <Header onUnlockAll={() => setUnlockModalOpen(true)} />
 
-      <BossCounts bossCounts={bossCounts} />
+       <BossCounts
+        bossCounts={bossCounts}
+        selectedBoss={selectedBoss}
+        onBossClick={handleBossClick}
+        onReset={resetBossFilter}
+      />
 
       <FilterBar
         selectedFilter={selectedFilter}
@@ -283,7 +310,6 @@ const bossCounts = useMemo(() => {
         openRemoveModal={openRemoveModal}
       />
 
-      {/* Modals */}
       <BlockModal
         open={modalOpen}
         onOpenChange={setModalOpen}
