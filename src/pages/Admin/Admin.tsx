@@ -105,7 +105,7 @@ const Admin: React.FC = () => {
       const playersWithNames = await Promise.all(
         data.map(async (p: any) => ({
           ...p,
-          isPresent: true,
+          isPresent: false,
           armeName: p.idArme ? await getArmeNameById(p.idArme) : "Aucune",
           armureName: p.idArmure ? await getArmureNameById(p.idArmure) : "Aucune",
           accessoireName: p.idAccesoires ? await getAccessoireNameById(p.idAccesoires) : "Aucun",
