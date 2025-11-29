@@ -201,7 +201,7 @@ const Admin: React.FC = () => {
 
   // ----------- RESET PLAYER FILTER -------------
   const resetPresence = () => {
-    const resetPlayers = players.map(p => ({ ...p, isPresent: true }));
+    const resetPlayers = players.map(p => ({ ...p, isPresent: false }));
     setPlayers(resetPlayers);
     setFilteredPlayers(resetPlayers);
   };
@@ -217,9 +217,26 @@ const Admin: React.FC = () => {
     players
       .filter(p => p.isPresent)
       .forEach((p) => {
-        p.armeBoss?.forEach(b => bosses.armes[b] = (bosses.armes[b] || 0) + 1);
-        p.armureBoss?.forEach(b => bosses.armures[b] = (bosses.armures[b] || 0) + 1);
-        p.accessoireBoss?.forEach(b => bosses.accessoires[b] = (bosses.accessoires[b] || 0) + 1);
+        // Arme : compter seulement si non looté
+        if (!p.has_looted_arme) {
+          p.armeBoss?.forEach(b => {
+            bosses.armes[b] = (bosses.armes[b] || 0) + 1;
+          });
+        }
+
+        // Armure : compter seulement si non looté
+        if (!p.has_looted_armure) {
+          p.armureBoss?.forEach(b => {
+            bosses.armures[b] = (bosses.armures[b] || 0) + 1;
+          });
+        }
+
+        // Accessoire : compter seulement si non looté
+        if (!p.has_looted_accessoires) {
+          p.accessoireBoss?.forEach(b => {
+            bosses.accessoires[b] = (bosses.accessoires[b] || 0) + 1;
+          });
+        }
       });
 
     const entrySort = (obj: Record<string, number>) =>
