@@ -41,13 +41,13 @@ interface Player {
   armeName?: string;
   armureName?: string;
   accessoireName?: string;
-  armeBoss?: string | null;
-  armureBoss?: string | null;
-  accessoireBoss?: string | null;
+  armeBoss?: string[];
+  armureBoss?: string[];
+  accessoireBoss?: string[];
   idRole?: string | null;
   roleName?: string;
   roleColor?: string;
-  isPresent?: boolean; // ← ajout pour présence
+  isPresent?: boolean;
 }
 
 const Admin: React.FC = () => {
@@ -105,13 +105,13 @@ const Admin: React.FC = () => {
       const playersWithNames = await Promise.all(
         data.map(async (p: any) => ({
           ...p,
-          isPresent: false,
+          isPresent: false, // par défaut aucun joueur présent
           armeName: p.idArme ? await getArmeNameById(p.idArme) : "Aucune",
           armureName: p.idArmure ? await getArmureNameById(p.idArmure) : "Aucune",
           accessoireName: p.idAccesoires ? await getAccessoireNameById(p.idAccesoires) : "Aucun",
-          armeBoss: p.idArme ? (await getArmeBossById(p.idArme)) ?? null : null,
-          armureBoss: p.idArmure ? (await getArmureBossById(p.idArmure)) ?? null : null,
-          accessoireBoss: p.idAccesoires ? (await getAccessoireBossById(p.idAccesoires)) ?? null : null,
+          armeBoss: p.idArme ? await getArmeBossById(p.idArme) : [],
+          armureBoss: p.idArmure ? await getArmureBossById(p.idArmure) : [],
+          accessoireBoss: p.idAccesoires ? await getAccessoireBossById(p.idAccesoires) : [],
           roleName: p.idRole ? await getRoleById(p.idRole) : "Aucun",
           roleColor: p.idRole ? await getColorRoleById(p.idRole) : "#9CA3AF"
         }))
@@ -132,7 +132,7 @@ const Admin: React.FC = () => {
 
   // ----------- FILTER PLAYERS -------------
   useEffect(() => {
-    if (selectedBoss) return; // priorité au filtre boss
+    if (selectedBoss) return;
 
     if (!selectedFilter) {
       setFilteredPlayers(players);
@@ -154,9 +154,10 @@ const Admin: React.FC = () => {
     setSelectedBoss(boss);
 
     const filtered = players.filter(p =>
-      p.isPresent && (p.armeBoss?.includes(boss) ||
-                      p.armureBoss?.includes(boss) ||
-                      p.accessoireBoss?.includes(boss))
+      p.isPresent &&
+      (p.armeBoss?.includes(boss) ||
+       p.armureBoss?.includes(boss) ||
+       p.accessoireBoss?.includes(boss))
     );
 
     setFilteredPlayers(filtered);
@@ -176,7 +177,6 @@ const Admin: React.FC = () => {
 
     setPlayers(updated);
 
-    // Mettre à jour filteredPlayers si boss filter actif
     if (selectedBoss) {
       const filtered = updated.filter(p =>
         p.isPresent &&
@@ -206,7 +206,6 @@ const Admin: React.FC = () => {
     setFilteredPlayers(resetPlayers);
   };
 
-
   // ----------- GET BOSS COUNTS -------------
   const bossCounts = useMemo(() => {
     const bosses: {
@@ -216,22 +215,11 @@ const Admin: React.FC = () => {
     } = { armes: {}, armures: {}, accessoires: {} };
 
     players
-      .filter(p => p.isPresent) // ← ne compter que les présents
+      .filter(p => p.isPresent)
       .forEach((p) => {
-        if (p.armeBoss)
-          bosses.armes[p.armeBoss] = (bosses.armes[p.armeBoss] || 0) + 1;
-
-        if (p.armureBoss) {
-          p.armureBoss.split(", ").forEach((boss) => {
-            bosses.armures[boss] = (bosses.armures[boss] || 0) + 1;
-          });
-        }
-
-        if (p.accessoireBoss) {
-          p.accessoireBoss.split(", ").forEach((boss) => {
-            bosses.accessoires[boss] = (bosses.accessoires[boss] || 0) + 1;
-          });
-        }
+        p.armeBoss?.forEach(b => bosses.armes[b] = (bosses.armes[b] || 0) + 1);
+        p.armureBoss?.forEach(b => bosses.armures[b] = (bosses.armures[b] || 0) + 1);
+        p.accessoireBoss?.forEach(b => bosses.accessoires[b] = (bosses.accessoires[b] || 0) + 1);
       });
 
     const entrySort = (obj: Record<string, number>) =>

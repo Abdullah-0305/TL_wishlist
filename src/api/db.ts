@@ -1,5 +1,7 @@
 import { supabase } from "../lib/supabase";
 
+// --- Items & Players ---
+
 export async function getArmes() {
   const { data, error } = await supabase.from("armes").select("*").order("name");
   return { data, error };
@@ -25,7 +27,6 @@ export async function getPlayers() {
   return { data, error };
 }
 
-// Récupère un joueur par son name
 export async function getPlayerByName(name: string) {
   const { data, error } = await supabase
     .from("player")
@@ -55,113 +56,80 @@ export async function setPlayerHasLooted(
     accessoire: "has_looted_accessoires",
   } as const;
 
-  const updates = {
-    [columnMap[itemType]]: value,
-  };
-
-  return updatePlayer(id, updates);
+  return updatePlayer(id, { [columnMap[itemType]]: value });
 }
 
+// --- Récupérer le nom d'un item ---
 
-// Récupérer le nom d'une arme à partir de son id
 export async function getArmeNameById(id: string) {
-  const { data, error } = await supabase
-    .from("armes")
-    .select("name")
-    .eq("id", id)
-    .maybeSingle();
-  
+  const { data, error } = await supabase.from("armes").select("name").eq("id", id).maybeSingle();
   if (error) throw error;
   return data?.name || null;
 }
 
-// Récupérer le nom d'une armure à partir de son id
 export async function getArmureNameById(id: string) {
-  const { data, error } = await supabase
-    .from("armures")
-    .select("name")
-    .eq("id", id)
-    .maybeSingle();
-
+  const { data, error } = await supabase.from("armures").select("name").eq("id", id).maybeSingle();
   if (error) throw error;
   return data?.name || null;
 }
 
-// Récupérer le nom d'un accessoire à partir de son id
 export async function getAccessoireNameById(id: string) {
-  const { data, error } = await supabase
-    .from("accessoires")
-    .select("name")
-    .eq("id", id)
-    .maybeSingle();
-
+  const { data, error } = await supabase.from("accessoires").select("name").eq("id", id).maybeSingle();
   if (error) throw error;
   return data?.name || null;
 }
 
-export async function getRoleById(id: string){
-  const { data, error } = await supabase
-    .from("role")
-    .select("name")
-    .eq("id", id)
-    .maybeSingle();
+// --- Récupérer les rôles ---
 
+export async function getRoleById(id: string) {
+  const { data, error } = await supabase.from("role").select("name").eq("id", id).maybeSingle();
   if (error) throw error;
   return data?.name || null;
 }
 
-export async function getColorRoleById(id: string){
-  const { data, error } = await supabase
-    .from("role")
-    .select("color")
-    .eq("id", id)
-    .maybeSingle();
-
+export async function getColorRoleById(id: string) {
+  const { data, error } = await supabase.from("role").select("color").eq("id", id).maybeSingle();
   if (error) throw error;
   return data?.color || null;
 }
 
-type BossResult = {
-  boss: {
-    name: string;
-  } | null;
-};
+// --- Récupérer les boss d’un item (plusieurs possibles) ---
 
-export async function getArmeBossById(id: string) {
+// Pour une arme (1 boss max)
+export async function getArmeBossById(id: string): Promise<string[]> {
   const { data, error } = await supabase
     .from("armes")
     .select("boss:boss(name)")
-    .eq("id", id)
-    .maybeSingle<BossResult>();
+    .eq("id", id);
 
   if (error) throw error;
 
-  return data?.boss?.name ?? null;
+  // data peut être [] ou [{ boss: { name: string } }]
+  return data?.map(d => d.boss?.name).filter((n): n is string => !!n) || [];
 }
 
-// Récupérer tous les boss d'une armure
-export async function getArmureBossById(id: string) {
+// Pour une armure (plusieurs bosses possibles)
+export async function getArmureBossById(id: string): Promise<string[]> {
   const { data, error } = await supabase
     .from("armures_boss")
     .select("boss:boss(name)")
-    .eq("id", id)
-    .maybeSingle<BossResult>();
+    .eq("idArmure", id);
 
   if (error) throw error;
 
-  return data?.boss?.name ?? null;
+  // data est un tableau de lignes, chacune avec boss.name
+  return data?.map(d => d.boss?.name).filter((n): n is string => !!n) || [];
 }
 
-// Récupérer tous les boss d'un accessoire
-export async function getAccessoireBossById(id: string) {
+// Pour un accessoire (plusieurs bosses possibles)
+export async function getAccessoireBossById(id: string): Promise<string[]> {
   const { data, error } = await supabase
     .from("accessoires_boss")
     .select("boss:boss(name)")
-    .eq("id", id)
-    .maybeSingle<BossResult>();
+    .eq("idAccessoire", id);
 
   if (error) throw error;
 
-  return data?.boss?.name ?? null;
+  return data?.map(d => d.boss?.name).filter((n): n is string => !!n) || [];
 }
 
