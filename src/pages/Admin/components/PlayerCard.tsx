@@ -1,18 +1,31 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { UserCog, MoreVertical } from "lucide-react";
 import ItemRow from "./ItemRow";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import DeletePlayerModal from "./DeletePlayerModal.tsx";
 
 const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPlayers }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  // Ferme le menu si on clique en dehors
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <>
       <Card className="border-primary/20 hover:border-primary/40 transition-colors relative p-2 sm:p-3">
 
-        {/* Bouton gérer FIXÉ en haut à droite (plus petit + discret) */}
+        {/* Bouton gérer FIXÉ en haut à droite */}
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Gérer"
@@ -24,7 +37,8 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
         {/* MENU FLOTTANT */}
         {menuOpen && (
           <div
-            className="absolute right-3 top-12 bg-primary shadow-lg rounded-md border z-30 w-44 dark:bg-slate-800 dark:border-slate-700"
+            ref={menuRef}
+            className="absolute right-3 top-12 bg-primary shadow-lg rounded-md border z-30 w-44 dark:bg-slate-800 dark:border-slate-700 hover:bg-[hsl(var(--primary-hover))]"
           >
             <button
               onClick={() => {
@@ -32,7 +46,7 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
                 setDeleteModalOpen(true);
               }}
               className="w-full text-left px-4 py-3 text-sm rounded transition
-                         hover:bg-red-600 hover:text-white hover:bg-purple-600"
+                        hover:text-white"
             >
               Supprimer le joueur
             </button>
@@ -51,8 +65,6 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
               <CardTitle>
                 <div className="flex items-center gap-3">
                   <span className="text-lg font-medium">{player.name}</span>
-
-                  {/* Badge rôle : toujours à droite */}
                   {player.roleName && (
                     <span
                       className="px-3 py-1 rounded-full text-xs sm:text-sm font-medium text-white flex-shrink-0"

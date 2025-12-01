@@ -19,6 +19,7 @@ All colors MUST be HSL.
 
     --primary: 280 65% 45%;
     --primary-foreground: 45 100% 98%;
+    --primary-hover: 280 65% 37%;
 
     --secondary: 45 90% 55%;
     --secondary-foreground: 280 30% 8%;

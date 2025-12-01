@@ -11,6 +11,7 @@ import PlayerGrid from "./components/PlayerGrid";
 import BlockModal, { BlockTarget } from "./components/BlockModal";
 import RemoveModal, { RemoveTarget } from "./components/RemoveModal";
 import UnlockAllModal, { UnlockAllTarget } from "./components/UnlockAllModal";
+import AddPlayerModal from "./components/AddPlayerModal";
 
 import {
   getPlayers,
@@ -26,7 +27,8 @@ import {
   getColorRoleById,
   getArmeBossById,
   getArmureBossById,
-  getAccessoireBossById
+  getAccessoireBossById,
+  createPlayer
 } from "@/api/db";
 
 interface Player {
@@ -76,6 +78,8 @@ const Admin: React.FC = () => {
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
   const [unlockTarget, setUnlockTarget] = useState<UnlockAllTarget | null>(null);
 
+  const [addPlayerModalOpen, setAddPlayerModalOpen] = useState(false);
+
   // ----------- LOAD ITEMS -------------
   const loadItems = async () => {
     try {
@@ -105,7 +109,7 @@ const Admin: React.FC = () => {
       const playersWithNames = await Promise.all(
         data.map(async (p: any) => ({
           ...p,
-          isPresent: false, // par défaut aucun joueur présent
+          isPresent: false,
           armeName: p.idArme ? await getArmeNameById(p.idArme) : "Aucune",
           armureName: p.idArmure ? await getArmureNameById(p.idArmure) : "Aucune",
           accessoireName: p.idAccesoires ? await getAccessoireNameById(p.idAccesoires) : "Aucun",
@@ -163,13 +167,11 @@ const Admin: React.FC = () => {
     setFilteredPlayers(filtered);
   };
 
-  // ----------- RESET BOSS FILTER -------------
   const resetBossFilter = () => {
     setSelectedBoss(null);
     setFilteredPlayers(players.filter(p => p.isPresent));
   };
 
-  // ----------- TOGGLE PRESENCE -------------
   const togglePresence = (playerId: string) => {
     const updated = players.map(p =>
       p.id === playerId ? { ...p, isPresent: !p.isPresent } : p
@@ -199,22 +201,18 @@ const Admin: React.FC = () => {
     }
   };
 
-  // ----------- RESET PLAYER FILTER -------------
   const resetPresence = () => {
     const resetPlayers = players.map(p => ({ ...p, isPresent: false }));
     setPlayers(resetPlayers);
     setFilteredPlayers(resetPlayers);
   };
 
-    // ----------- RESET PLAYER FILTER -------------
   const setAllPresence = () => {
     const resetPlayers = players.map(p => ({ ...p, isPresent: true }));
     setPlayers(resetPlayers);
     setFilteredPlayers(resetPlayers);
   };
 
-
-  // ----------- GET BOSS COUNTS -------------
   const bossCounts = useMemo(() => {
     const bosses: {
       armes: Record<string, number>;
@@ -225,32 +223,13 @@ const Admin: React.FC = () => {
     players
       .filter(p => p.isPresent)
       .forEach((p) => {
-        // Arme : compter seulement si non looté
-        if (!p.has_looted_arme) {
-          p.armeBoss?.forEach(b => {
-            bosses.armes[b] = (bosses.armes[b] || 0) + 1;
-          });
-        }
-
-        // Armure : compter seulement si non looté
-        if (!p.has_looted_armure) {
-          p.armureBoss?.forEach(b => {
-            bosses.armures[b] = (bosses.armures[b] || 0) + 1;
-          });
-        }
-
-        // Accessoire : compter seulement si non looté
-        if (!p.has_looted_accessoires) {
-          p.accessoireBoss?.forEach(b => {
-            bosses.accessoires[b] = (bosses.accessoires[b] || 0) + 1;
-          });
-        }
+        if (!p.has_looted_arme) p.armeBoss?.forEach(b => { bosses.armes[b] = (bosses.armes[b] || 0) + 1; });
+        if (!p.has_looted_armure) p.armureBoss?.forEach(b => { bosses.armures[b] = (bosses.armures[b] || 0) + 1; });
+        if (!p.has_looted_accessoires) p.accessoireBoss?.forEach(b => { bosses.accessoires[b] = (bosses.accessoires[b] || 0) + 1; });
       });
 
     const entrySort = (obj: Record<string, number>) =>
-      Object.entries(obj)
-        .filter(([, count]) => count > 0)
-        .sort((a, b) => b[1] - a[1]);
+      Object.entries(obj).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1]);
 
     return {
       armes: entrySort(bosses.armes),
@@ -259,7 +238,6 @@ const Admin: React.FC = () => {
     };
   }, [players]);
 
-  // -------- BLOCK ----------
   const openModal = (playerId: string, itemType: "arme" | "armure" | "accessoire") => {
     const player = players.find((p) => p.id === playerId);
     setTarget({ playerId, itemType, playerName: player?.name });
@@ -284,7 +262,6 @@ const Admin: React.FC = () => {
     }
   };
 
-  // -------- REMOVE ----------
   const openRemoveModal = (playerId: string, itemType: "arme" | "armure" | "accessoire") => {
     const player = players.find((p) => p.id === playerId);
     setRemoveTarget({ playerId, itemType, playerName: player?.name });
@@ -312,7 +289,6 @@ const Admin: React.FC = () => {
     setRemoveTarget(null);
   };
 
-  // -------- UNLOCK ALL ----------
   const unlockAll = async () => {
     try {
       await Promise.all(
@@ -338,7 +314,24 @@ const Admin: React.FC = () => {
     }
   };
 
-  // -------- Render ----------
+  // ----------- HANDLE ADD PLAYER ----------
+  const handlePlayerAdded = async (name: string, password: string) => {
+    try {
+      const result = await createPlayer(name, password);
+      if (!result) {
+        toast.error("Erreur lors de la création du joueur");
+        return;
+      }
+
+      // recharge les joueurs
+      await loadPlayers();
+      // modal reste ouvert, l'utilisateur le fermera
+    } catch (err) {
+      console.error(err);
+      toast.error("Erreur lors de la création du joueur");
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 p-4">
       <Header onUnlockAll={() => setUnlockModalOpen(true)} />
@@ -350,7 +343,7 @@ const Admin: React.FC = () => {
         onReset={resetBossFilter}
       />
 
-      {/* Section filtres + reset */}
+      {/* Section filtres + boutons */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <FilterBar
           selectedFilter={selectedFilter}
@@ -373,6 +366,13 @@ const Admin: React.FC = () => {
         >
           Tout mettre Présent
         </button>
+
+        <button
+          onClick={() => setAddPlayerModalOpen(true)}
+          className="px-4 pt-1 pb-1 rounded bg-primary/90 text-white font-medium hover:bg-primary/80 transition-colors w-full sm:w-auto"
+        >
+          Ajouter un joueur
+        </button>
       </div>
 
       <PlayerGrid
@@ -383,25 +383,15 @@ const Admin: React.FC = () => {
         loadPlayers={loadPlayers}
       />
 
-      <BlockModal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        target={target}
-        onConfirm={confirmBlock}
-      />
+      <BlockModal open={modalOpen} onOpenChange={setModalOpen} target={target} onConfirm={confirmBlock} />
+      <RemoveModal open={removeModalOpen} onOpenChange={setRemoveModalOpen} target={removeTarget} onConfirm={confirmRemove} />
+      <UnlockAllModal open={unlockModalOpen} onOpenChange={setUnlockModalOpen} target={unlockTarget} onConfirm={unlockAll} />
 
-      <RemoveModal
-        open={removeModalOpen}
-        onOpenChange={setRemoveModalOpen}
-        target={removeTarget}
-        onConfirm={confirmRemove}
-      />
-
-      <UnlockAllModal
-        open={unlockModalOpen}
-        onOpenChange={setUnlockModalOpen}
-        target={unlockTarget}
-        onConfirm={unlockAll}
+      <AddPlayerModal
+        open={addPlayerModalOpen}
+        onOpenChange={setAddPlayerModalOpen}
+        onPlayerAdded={handlePlayerAdded}
+        loadPlayers={loadPlayers}
       />
     </div>
   );

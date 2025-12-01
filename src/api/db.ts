@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import bcrypt from "bcryptjs";
 
 // --- Items & Players ---
 
@@ -142,3 +143,17 @@ export async function deletePlayer(id: string) {
   if (error) throw error;
   return data;
 }
+
+export const createPlayer = async (name: string, password: string) => {
+  const hashed = await bcrypt.hash(password, 10);
+
+  const { data, error } = await supabase
+    .from("player")
+    .insert([{ name, mdp: hashed }]);
+
+  if (error) throw error;
+
+  // Retourne uniquement l'objet créé
+  return data?.[0] ?? null;
+};
+
