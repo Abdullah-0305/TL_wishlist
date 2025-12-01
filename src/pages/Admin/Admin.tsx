@@ -8,7 +8,7 @@ import Header from "./components/Header";
 import BossCounts from "./components/BossCounts";
 import FilterBar from "./components/FilterBar";
 import PlayerGrid from "./components/PlayerGrid";
-import BlockModal, { BlockTarget } from "./components/BlockModal";
+import BlockModal, { BlockTarget, BlockMode } from "./components/BlockModal";
 import RemoveModal, { RemoveTarget } from "./components/RemoveModal";
 import UnlockAllModal, { UnlockAllTarget } from "./components/UnlockAllModal";
 import AddPlayerModal from "./components/AddPlayerModal";
@@ -240,7 +240,16 @@ const Admin: React.FC = () => {
 
   const openModal = (playerId: string, itemType: "arme" | "armure" | "accessoire") => {
     const player = players.find((p) => p.id === playerId);
-    setTarget({ playerId, itemType, playerName: player?.name });
+    if (!player) return;
+
+    const hasLooted =
+      itemType === "arme" ? player.has_looted_arme :
+      itemType === "armure" ? player.has_looted_armure :
+      player.has_looted_accessoires;
+
+    const mode: BlockMode = hasLooted ? "unblock" : "block";
+
+    setTarget({ playerId, itemType, mode, playerName: player.name });
     setModalOpen(true);
   };
 
@@ -250,12 +259,12 @@ const Admin: React.FC = () => {
     if (!player) return;
 
     try {
-      await setPlayerHasLooted(target.playerId, true, target.itemType);
-      toast.success(`Élément bloqué pour ${player.name}`);
+      await setPlayerHasLooted(target.playerId, target.mode === "block", target.itemType);
+      toast.success(`Élément ${target.mode === "block" ? "bloqué" : "débloqué"} pour ${player.name}`);
       await loadPlayers();
     } catch (err) {
       console.error(err);
-      toast.error("Erreur lors du blocage");
+      toast.error("Erreur lors de l'action");
     } finally {
       setModalOpen(false);
       setTarget(null);
@@ -314,7 +323,6 @@ const Admin: React.FC = () => {
     }
   };
 
-  // ----------- HANDLE ADD PLAYER ----------
   const handlePlayerAdded = async (name: string, password: string) => {
     try {
       const result = await createPlayer(name, password);
@@ -323,9 +331,7 @@ const Admin: React.FC = () => {
         return;
       }
 
-      // recharge les joueurs
       await loadPlayers();
-      // modal reste ouvert, l'utilisateur le fermera
     } catch (err) {
       console.error(err);
       toast.error("Erreur lors de la création du joueur");
@@ -335,7 +341,6 @@ const Admin: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto space-y-6 p-4">
       <Header onUnlockAll={() => setUnlockModalOpen(true)} />
-
       <BossCounts
         bossCounts={bossCounts}
         selectedBoss={selectedBoss}
@@ -343,7 +348,6 @@ const Admin: React.FC = () => {
         onReset={resetBossFilter}
       />
 
-      {/* Section filtres + boutons */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <FilterBar
           selectedFilter={selectedFilter}
@@ -352,25 +356,13 @@ const Admin: React.FC = () => {
           armures={armures}
           accessoires={accessoires}
         />
-
-        <button
-          onClick={resetPresence}
-          className="px-4 pt-1 pb-1 rounded bg-primary/90 text-primary-foreground font-medium hover:bg-primary/80 transition-colors w-full sm:w-auto"
-        >
+        <button onClick={resetPresence} className="px-4 pt-1 pb-1 rounded bg-primary/90 text-primary-foreground font-medium hover:bg-primary/80 transition-colors w-full sm:w-auto">
           Reset Présence
         </button>
-
-        <button
-          onClick={setAllPresence}
-          className="px-4 pt-1 pb-1 rounded bg-primary/90 text-primary-foreground font-medium hover:bg-primary/80 transition-colors w-full sm:w-auto"
-        >
+        <button onClick={setAllPresence} className="px-4 pt-1 pb-1 rounded bg-primary/90 text-primary-foreground font-medium hover:bg-primary/80 transition-colors w-full sm:w-auto">
           Tout mettre Présent
         </button>
-
-        <button
-          onClick={() => setAddPlayerModalOpen(true)}
-          className="px-4 pt-1 pb-1 rounded bg-primary/90 text-white font-medium hover:bg-primary/80 transition-colors w-full sm:w-auto"
-        >
+        <button onClick={() => setAddPlayerModalOpen(true)} className="px-4 pt-1 pb-1 rounded bg-primary/90 text-white font-medium hover:bg-primary/80 transition-colors w-full sm:w-auto">
           Ajouter un joueur
         </button>
       </div>
@@ -386,7 +378,6 @@ const Admin: React.FC = () => {
       <BlockModal open={modalOpen} onOpenChange={setModalOpen} target={target} onConfirm={confirmBlock} />
       <RemoveModal open={removeModalOpen} onOpenChange={setRemoveModalOpen} target={removeTarget} onConfirm={confirmRemove} />
       <UnlockAllModal open={unlockModalOpen} onOpenChange={setUnlockModalOpen} target={unlockTarget} onConfirm={unlockAll} />
-
       <AddPlayerModal
         open={addPlayerModalOpen}
         onOpenChange={setAddPlayerModalOpen}
