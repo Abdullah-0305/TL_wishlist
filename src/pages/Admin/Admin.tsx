@@ -380,6 +380,7 @@ const Admin: React.FC = () => {
         openModal={openModal}
         openRemoveModal={openRemoveModal}
         togglePresence={togglePresence}
+        loadPlayers={loadPlayers}
       />
 
       <BlockModal

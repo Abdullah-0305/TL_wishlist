@@ -4,7 +4,8 @@ const PlayerGrid = ({
   players,
   openModal,
   openRemoveModal,
-  togglePresence
+  togglePresence,
+  loadPlayers
 }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -15,6 +16,7 @@ const PlayerGrid = ({
           openModal={openModal}
           openRemoveModal={openRemoveModal}
           togglePresence={togglePresence}
+          loadPlayers={loadPlayers}
         />
       ))}
     </div>

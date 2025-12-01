@@ -133,3 +133,12 @@ export async function getAccessoireBossById(id: string): Promise<string[]> {
   return data?.map(d => d.boss?.name).filter((n): n is string => !!n) || [];
 }
 
+export async function deletePlayer(id: string) {
+  const { data, error } = await supabase
+    .from("player")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw error;
+  return data;
+}
