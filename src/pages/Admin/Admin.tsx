@@ -28,7 +28,8 @@ import {
   getArmeBossById,
   getArmureBossById,
   getAccessoireBossById,
-  createPlayer
+  createPlayer,
+  resetLastLootDate
 } from "@/api/db";
 
 interface Player {
@@ -50,6 +51,7 @@ interface Player {
   roleName?: string;
   roleColor?: string;
   isPresent?: boolean;
+  date_last_looted_item: Date;
 }
 
 const Admin: React.FC = () => {
@@ -106,6 +108,25 @@ const Admin: React.FC = () => {
       }
       if (!data) return;
 
+      // ---- RESET automatique si + de 7 jours ----
+      await Promise.all(
+        data.map(async (p: any) => {
+          if (p.date_last_looted_item) {
+
+            const lootDate = new Date(p.date_last_looted_item);
+            const now = new Date();
+
+            const diffDays =
+              (now.getTime() - lootDate.getTime()) / (1000 * 60 * 60 * 24);
+
+            if (diffDays > 7) {
+              await resetLastLootDate(p.id);
+              p.date_last_looted_item = null; // mettre à jour localement aussi
+            }
+          }
+        })
+      );
+
       const playersWithNames = await Promise.all(
         data.map(async (p: any) => ({
           ...p,
@@ -123,6 +144,7 @@ const Admin: React.FC = () => {
 
       setPlayers(playersWithNames);
       setFilteredPlayers(playersWithNames);
+
     } catch (err) {
       console.error(err);
       toast.error("Erreur lors du chargement des joueurs");

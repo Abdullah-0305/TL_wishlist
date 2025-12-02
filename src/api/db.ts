@@ -57,7 +57,15 @@ export async function setPlayerHasLooted(
     accessoire: "has_looted_accessoires",
   } as const;
 
-  return updatePlayer(id, { [columnMap[itemType]]: value });
+  // Date du jour au format YYYY-MM-DD
+  const today = new Date().toISOString().split("T")[0];
+
+  const updates = {
+    [columnMap[itemType]]: value,
+    date_last_looted_item: value ? today : null,
+  };
+
+  return updatePlayer(id, updates);
 }
 
 // --- Récupérer le nom d'un item ---
@@ -157,3 +165,9 @@ export const createPlayer = async (name: string, password: string) => {
   return data?.[0] ?? null;
 };
 
+export const resetLastLootDate = async (playerId) => {
+  return await supabase
+    .from("player")
+    .update({ date_last_looted_item: null })
+    .eq("id", playerId);
+};
