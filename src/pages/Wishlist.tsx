@@ -158,17 +158,37 @@ const Wishlist = () => {
           <div className="border-t border-primary/20 pt-4 space-y-3">
             <h3 className="font-semibold text-lg">💎 Règles de Loot (Boss de Guilde)</h3>
 
-            <p><strong>1. Centralisation des Loots</strong><br />
-            Tous les loots des Boss de Guilde sont envoyés au Coffre de Guilde. La distribution est ensuite gérée par un membre de la Co-Gestion.</p>
+            <p>
+              <strong>1. Centralisation des Loots</strong><br />
+              Tous les loots des Boss de Guilde sont envoyés au Coffre de Guilde. La distribution est ensuite gérée par un membre de la Co-Gestion.
+            </p>
 
-            <p><strong>2. La Wishlist</strong><br />
-            Vous devez inscrire vos souhaits : Classe, Arme/Armure/Accessoire voulu.</p>
+            <p>
+              <strong>2. La Wishlist</strong><br />
+              Vous devez inscrire vos souhaits : Classe, Arme/Armure/Accessoire voulu.
+            </p>
 
-            <p><strong>3. Attribution et Équité</strong><br />
-            Priorité aux joueurs présents, anciens et actifs. Une fois un loot obtenu, un délai de 7 jours est requis avant de pouvoir en recevoir un autre.</p>
+            <p>
+              <strong>3. Attribution et Équité</strong><br />
+              Priorité aux joueurs <strong>présents, anciens et actifs.</strong> Une fois un loot obtenu, un délai de 7 jours est requis avant de pouvoir en recevoir un autre.
+            </p>
 
-            <p><strong>4. Distribution & Vocal Obligatoire</strong><br />
-            Le vocal Discord est obligatoire lors des distributions de loots.</p>
+            <p>
+              <strong>4. Distribution & Vocal Obligatoire</strong><br />
+              Le vocal Discord est obligatoire lors des distributions de loots.
+            </p>
+          </div>
+
+          {/* 🔽 Nouvelle section */}
+          <div className="border-t border-primary/20 pt-4 space-y-2">
+            <h3 className="font-semibold text-lg">📩 Changement de Wishlist</h3>
+
+            <p>
+              Si vous avez déjà obtenu <strong>un item de votre wishlist</strong> et que vous souhaitez
+              <strong> modifier votre choix</strong>, vous devez impérativement
+              <strong> contacter un membre de la Co-Gestion</strong> par message privé
+              (Discord ou autre).
+            </p>
           </div>
         </CardContent>
       </Card>
