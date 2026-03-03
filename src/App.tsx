@@ -10,6 +10,7 @@ import Admin from "./pages/Admin/Admin";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import ChangePassword from "./pages/ChangePassword";
+import LanguageSwitcher from "./components/LanguageSwitcher";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ const App = () => (
         <BrowserRouter>
           <Layout>
             <AppRoutes />
+            <LanguageSwitcher/>
           </Layout>
         </BrowserRouter>
       </TooltipProvider>

@@ -8,8 +8,10 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import bcrypt from "bcryptjs";
 import { Eye, EyeOff } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const ChangePassword = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -24,15 +26,15 @@ const ChangePassword = () => {
 
   const handleChange = async () => {
     if (!newPassword || !confirm) {
-      toast.error("Tous les champs sont obligatoires");
+      toast.error(t("change_password.error_required"));
       return;
     }
     if (newPassword !== confirm) {
-      toast.error("Les nouveaux mots de passe ne correspondent pas");
+      toast.error(t("change_password.error_mismatch"));
       return;
     }
     if (newPassword.length < 6) {
-      toast.error("Le mot de passe doit faire au moins 6 caractères");
+      toast.error(t("change_password.error_length"));
       return;
     }
 
@@ -46,7 +48,7 @@ const ChangePassword = () => {
         .maybeSingle();
 
       if (error || !player) {
-        toast.error("Utilisateur introuvable");
+        toast.error(t("change_password.error_user"));
         return;
       }
 
@@ -60,11 +62,11 @@ const ChangePassword = () => {
 
       if (updateError) throw updateError;
 
-      toast.success("Mot de passe mis à jour !");
+      toast.success(t("change_password.success"));
       navigate("/wishlist");
     } catch (err) {
       console.error(err);
-      toast.error("Erreur lors de la mise à jour.");
+      toast.error(t("change_password.error_update"));
     } finally {
       setLoading(false);
     }
@@ -83,12 +85,12 @@ const ChangePassword = () => {
         placeholder={placeholder}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className="pr-10" // espace pour le bouton œil
+        className="pr-10 border-primary/30 focus:border-primary"
       />
       <button
         type="button"
         onClick={() => setShow(!show)}
-        className="absolute inset-y-0 right-2 flex items-center justify-center text-muted-foreground"
+        className="absolute inset-y-0 right-2 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
       >
         {show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
       </button>
@@ -96,20 +98,36 @@ const ChangePassword = () => {
   );
 
   return (
-    <div className="max-w-md mx-auto mt-10">
-      <Card className="border-primary/20">
+    <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+      <Card className="w-full max-w-md border-primary/20 shadow-glow-primary bg-card/50 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle>Changer votre mot de passe</CardTitle>
+          <CardTitle>{t("change_password.title")}</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Vous devez définir un mot de passe personnel avant de continuer.
+            {t("change_password.subtitle")}
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {renderPasswordInput(newPassword, setNewPassword, "Nouveau mot de passe", showNew, setShowNew)}
-          {renderPasswordInput(confirm, setConfirm, "Confirmer le mot de passe", showConfirm, setShowConfirm)}
+          {renderPasswordInput(
+            newPassword, 
+            setNewPassword, 
+            t("change_password.placeholder_new"), 
+            showNew, 
+            setShowNew
+          )}
+          {renderPasswordInput(
+            confirm, 
+            setConfirm, 
+            t("change_password.placeholder_confirm"), 
+            showConfirm, 
+            setShowConfirm
+          )}
 
-          <Button onClick={handleChange} className="w-full" disabled={loading}>
-            {loading ? "Chargement..." : "Mettre à jour"}
+          <Button 
+            onClick={handleChange} 
+            className="w-full bg-gradient-primary hover:opacity-90 shadow-glow-primary font-bold" 
+            disabled={loading}
+          >
+            {loading ? t("change_password.loading") : t("change_password.button_update")}
           </Button>
         </CardContent>
       </Card>
