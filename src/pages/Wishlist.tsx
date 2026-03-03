@@ -192,7 +192,7 @@ const Wishlist = () => {
             <h3 className="font-semibold text-lg">{t("wishlist.change_title")}</h3>
 
             <p>
-              <Trans i18nKey="wishlist.change_request_desc">
+              <Trans i18nKey="wishlist.change_desc">
                 Si vous avez déjà obtenu <strong>un item de votre wishlist</strong> et que vous souhaitez
                 <strong> modifier votre choix</strong>, vous devez impérativement
                 <strong> contacter un membre de la Co-Gestion</strong> par message privé
