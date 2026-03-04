@@ -14,6 +14,7 @@ import RemoveModal, { RemoveTarget } from "./components/RemoveModal";
 import UnlockAllModal from "./components/UnlockAllModal";
 import AddPlayerModal from "./components/AddPlayerModal";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 import {
   getPlayers,
@@ -171,44 +172,52 @@ const Admin: React.FC = () => {
         />
 
         {/* --- ZONE DE CONTRÔLE --- */}
-        <div className="space-y-4">
-          <FilterBar 
-            selectedFilter={selectedFilter} 
-            setSelectedFilter={setSelectedFilter} 
-            {...items} 
-          />
+<div className="space-y-4">
+  <FilterBar 
+    selectedFilter={selectedFilter} 
+    setSelectedFilter={setSelectedFilter} 
+    {...items} 
+  />
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* Groupe Présence */}
-            <div className="flex flex-1 gap-2 bg-violet-950/20 p-1.5 rounded-xl border border-fuchsia-500/10 shadow-inner">
-              <Button 
-                variant="ghost" 
-                onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: false})))}
-                className="flex-1 text-fuchsia-300/70 hover:text-white text-[10px] font-black uppercase tracking-widest h-10 hover:bg-fuchsia-600/20 transition-all active:scale-95"
-              >
-                <RotateCcw className="mr-2 h-3 w-3" /> {t("admin.reset_presence")}
-              </Button>
-              
-              <div className="w-[1px] bg-fuchsia-500/10 my-2" />
+  <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-start gap-4">
+    
+    {/* Groupe Présence - Grid avec padding de sécurité (px-4) */}
+    <div className="grid grid-cols-2 lg:flex items-center gap-2 bg-[#1e1333]/60 p-1.5 rounded-xl border border-white/5 shadow-inner w-full lg:w-fit">
+      <Button 
+        variant="ghost" 
+        onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: false})))}
+        className="flex items-center justify-center gap-2 text-fuchsia-300/70 hover:text-white text-[9px] xs:text-[10px] font-black uppercase tracking-widest h-12 lg:h-10 px-4 sm:px-6 hover:bg-fuchsia-600/20 transition-all active:scale-95 text-center min-w-0"
+      >
+        <RotateCcw className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" /> 
+        <span className="leading-tight break-words py-1 overflow-hidden">
+          {t("admin.reset_presence")}
+        </span>
+      </Button>
+      
+      {/* Séparateur vertical (uniquement PC) */}
+      <div className="hidden lg:block w-[1px] h-6 bg-white/10 mx-1 flex-shrink-0" />
 
-              <Button 
-                variant="ghost" 
-                onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: true})))}
-                className="flex-1 text-fuchsia-300/70 hover:text-white text-[10px] font-black uppercase tracking-widest h-10 hover:bg-fuchsia-600/20 transition-all active:scale-95"
-              >
-                <Users className="mr-2 h-3 w-3" /> {t("admin.set_all_presence")}
-              </Button>
-            </div>
+      <Button 
+        variant="ghost" 
+        onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: true})))}
+        className="flex items-center justify-center gap-2 text-fuchsia-300/70 hover:text-white text-[9px] xs:text-[10px] font-black uppercase tracking-widest h-12 lg:h-10 px-4 sm:px-6 hover:bg-fuchsia-600/20 transition-all active:scale-95 text-center min-w-0"
+      >
+        <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" /> 
+        <span className="leading-tight break-words py-1 overflow-hidden">
+          {t("admin.set_all_presence")}
+        </span>
+      </Button>
+    </div>
 
-            {/* Bouton Ajouter */}
-            <Button 
-              onClick={() => setAddPlayerModalOpen(true)}
-              className="bg-gradient-to-br from-gaming-gold to-amber-600 text-black font-black uppercase tracking-widest text-[10px] h-12 sm:h-auto px-10 rounded-xl shadow-lg hover:from-white hover:to-zinc-200 transition-all active:scale-95 border-b-2 border-amber-800"
-            >
-              <UserPlus className="mr-2 h-4 w-4" /> {t("admin.add_player")}
-            </Button>
-          </div>
-        </div>
+    {/* Bouton Ajouter */}
+    <Button 
+      onClick={() => setAddPlayerModalOpen(true)}
+      className="bg-gradient-to-br from-gaming-gold to-amber-600 text-black font-black uppercase tracking-widest text-[10px] h-12 lg:h-10 px-8 rounded-xl shadow-lg hover:brightness-110 transition-all active:scale-95 border-b-2 border-amber-800 w-full lg:w-fit flex-shrink-0"
+    >
+      <UserPlus className="mr-2 h-4 w-4" /> {t("admin.add_player")}
+    </Button>
+  </div>
+</div>
 
         {/* --- GRILLE DES JOUEURS --- */}
         <div className="pt-4 relative">
