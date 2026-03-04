@@ -1,5 +1,8 @@
-// /Admin/components/BossCounts.tsx
 import React from "react";
+import { useTranslation } from "react-i18next";
+import { RefreshCw, Target, Swords, Shield, Gem } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface BossCountsProps {
   bossCounts: {
@@ -18,68 +21,113 @@ const BossCounts: React.FC<BossCountsProps> = ({
   onBossClick,
   onReset
 }) => {
+  const { t } = useTranslation();
+
   const sections = [
-    { label: "Armes", data: bossCounts.armes },
-    { label: "Armures", data: bossCounts.armures },
-    { label: "Accessoires", data: bossCounts.accessoires },
+    { 
+      label: t("boss_counts.weapons"), 
+      data: bossCounts.armes, 
+      color: "text-fuchsia-400", 
+      icon: <Swords className="h-4 w-4" />,
+      glow: "group-hover:shadow-[0_0_15px_rgba(217,70,239,0.3)]"
+    },
+    { 
+      label: t("boss_counts.armors"), 
+      data: bossCounts.armures, 
+      color: "text-purple-400", 
+      icon: <Shield className="h-4 w-4" />,
+      glow: "group-hover:shadow-[0_0_15px_rgba(168,85,247,0.3)]"
+    },
+    { 
+      label: t("boss_counts.accessories"), 
+      data: bossCounts.accessoires, 
+      color: "text-gaming-gold", 
+      icon: <Gem className="h-4 w-4" />,
+      glow: "group-hover:shadow-[0_0_15px_rgba(212,175,55,0.3)]"
+    },
   ];
 
   return (
-    <div className="space-y-4 mb-6">
+    <div className="space-y-6 mb-10">
+      {/* Header avec titre Néon */}
+      <div className="flex items-center justify-between border-b border-fuchsia-500/20 pb-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-fuchsia-500/10 rounded-lg border border-fuchsia-500/30">
+            <Target className="h-5 w-5 text-fuchsia-500" />
+          </div>
+          <h3 className="text-xl font-black uppercase tracking-tighter text-white">
+            {t("boss_counts.main_title")}
+          </h3>
+        </div>
+        
+        {selectedBoss && (
+          <Button
+            variant="ghost"
+            onClick={onReset}
+            className="text-[10px] uppercase tracking-widest font-black h-8 text-fuchsia-400 hover:text-white hover:bg-fuchsia-500/20 gap-2 transition-all animate-in fade-in slide-in-from-right-4 border border-fuchsia-500/30"
+          >
+            <RefreshCw className="h-3 w-3" />
+            {t("boss_counts.reset_filter")}
+          </Button>
+        )}
+      </div>
 
-      {/* Bouton reset */}
-      <button
-        onClick={onReset}
-        className="
-          px-3 py-2 rounded bg-red-600 text-white text-sm 
-          hover:bg-red-700 transition
-        "
-      >
-        Réinitialiser le filtre Boss
-      </button>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {sections.map((section) => (
           <div
             key={section.label}
-            className="p-4 bg-card border border-primary/20 rounded-xl shadow-sm"
+            className="group flex flex-col bg-[#1e1333]/60 backdrop-blur-xl border border-fuchsia-500/10 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 hover:border-fuchsia-500/30"
           >
-            <h4 className="font-semibold mb-3">{section.label}</h4>
-
-            {section.data.length === 0 ? (
-              <div className="text-sm text-muted-foreground">Aucun boss</div>
-            ) : (
-              <div className="space-y-2">
-                {section.data.map(([boss, count]) => {
-                  const active = selectedBoss === boss;
-
-                  return (
-                    <button
-                      key={boss}
-                      onClick={() => onBossClick(boss)}
-                      className={`
-                        w-full flex justify-between items-center text-sm px-2 py-1 rounded 
-                        transition cursor-pointer
-                        ${active
-                          ? "bg-primary/30 text-white"
-                          : "text-muted-foreground hover:text-primary hover:bg-primary/10"
-                        }
-                      `}
-                    >
-                      <span>{boss}</span>
-                      <span
-                        className={`
-                          px-2 py-1 rounded-full text-xs font-medium 
-                          ${active ? "bg-primary/30" : "bg-primary/30 text-primary-foreground"}
-                        `}
-                      >
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
+            {/* Header de section avec dégradé subtil */}
+            <div className="px-4 py-3 bg-white/[0.03] border-b border-white/5 flex items-center justify-between">
+              <h4 className={cn("font-black text-[10px] uppercase tracking-[0.2em]", section.color)}>
+                {section.label}
+              </h4>
+              <div className={cn("opacity-50", section.color)}>
+                {section.icon}
               </div>
-            )}
+            </div>
+
+            <div className="p-4 flex-grow">
+              {section.data.length === 0 ? (
+                <div className="text-[10px] text-fuchsia-300/30 uppercase tracking-widest italic py-4 text-center">
+                  {t("boss_counts.no_boss")}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {section.data.map(([boss, count]) => {
+                    const isActive = selectedBoss === boss;
+
+                    return (
+                      <button
+                        key={boss}
+                        onClick={() => onBossClick(boss)}
+                        className={cn(
+                          "group/item w-full flex justify-between items-center text-xs px-3 py-2.5 rounded-xl transition-all duration-300 border",
+                          isActive
+                            ? "bg-gradient-to-r from-fuchsia-600 to-purple-700 border-gaming-gold text-white shadow-lg shadow-fuchsia-900/40 translate-x-1"
+                            : "bg-black/20 border-white/5 text-fuchsia-100/70 hover:bg-fuchsia-500/10 hover:border-fuchsia-500/40 hover:text-white"
+                        )}
+                      >
+                        <span className="font-bold tracking-tight truncate pr-2 uppercase italic">
+                          {boss}
+                        </span>
+                        <span
+                          className={cn(
+                            "flex items-center justify-center min-w-[28px] h-6 px-2 rounded-lg text-[10px] font-black transition-all",
+                            isActive 
+                              ? "bg-gaming-gold text-black shadow-[0_0_10px_rgba(212,175,55,0.5)]" 
+                              : "bg-fuchsia-950/50 text-fuchsia-400 border border-fuchsia-500/20 group-hover/item:bg-fuchsia-500 group-hover/item:text-white"
+                          )}
+                        >
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         ))}
       </div>

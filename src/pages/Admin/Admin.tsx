@@ -1,17 +1,19 @@
-// /Admin/Admin.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { useTranslation } from "react-i18next";
+import { UserPlus, Users, RotateCcw } from "lucide-react";
 
 import Header from "./components/Header";
 import BossCounts from "./components/BossCounts";
 import FilterBar from "./components/FilterBar";
 import PlayerGrid from "./components/PlayerGrid";
-import BlockModal, { BlockTarget, BlockMode } from "./components/BlockModal";
+import BlockModal, { BlockTarget } from "./components/BlockModal";
 import RemoveModal, { RemoveTarget } from "./components/RemoveModal";
-import UnlockAllModal, { UnlockAllTarget } from "./components/UnlockAllModal";
+import UnlockAllModal from "./components/UnlockAllModal";
 import AddPlayerModal from "./components/AddPlayerModal";
+import { Button } from "@/components/ui/button";
 
 import {
   getPlayers,
@@ -32,6 +34,8 @@ import {
   resetLastLootDate
 } from "@/api/db";
 
+// --- INTERFACES ---
+interface MultiLangText { fr: string; en: string; }
 interface Player {
   id: string;
   name: string;
@@ -41,371 +45,208 @@ interface Player {
   has_looted_arme?: boolean;
   has_looted_armure?: boolean;
   has_looted_accessoires?: boolean;
-  armeName?: string;
-  armureName?: string;
-  accessoireName?: string;
-  armeBoss?: string[];
-  armureBoss?: string[];
-  accessoireBoss?: string[];
+  armeName?: MultiLangText | null;
+  armureName?: MultiLangText | null;
+  accessoireName?: MultiLangText | null;
+  armeBoss?: MultiLangText[];
+  armureBoss?: MultiLangText[];
+  accessoireBoss?: MultiLangText[];
   idRole?: string | null;
-  roleName?: string;
+  roleName?: MultiLangText | null;
   roleColor?: string;
   isPresent?: boolean;
-  date_last_looted_item: Date;
+  date_last_looted_item: Date | null;
 }
 
 const Admin: React.FC = () => {
   const { user } = useAuth();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language as "fr" | "en";
+
   if (!user) return <Navigate to="/login" replace />;
 
-  // Data
   const [players, setPlayers] = useState<Player[]>([]);
   const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([]);
-
-  const [armes, setArmes] = useState<{ id: string; name: string }[]>([]);
-  const [armures, setArmures] = useState<{ id: string; name: string }[]>([]);
-  const [accessoires, setAccessoires] = useState<{ id: string; name: string }[]>([]);
-
-  // Filter
+  const [items, setItems] = useState({ armes: [], armures: [], accessoires: [] });
   const [selectedFilter, setSelectedFilter] = useState<string>("");
   const [selectedBoss, setSelectedBoss] = useState<string | null>(null);
 
-  // Modals & targets
+  // Modals
   const [modalOpen, setModalOpen] = useState(false);
   const [target, setTarget] = useState<BlockTarget | null>(null);
-
   const [removeModalOpen, setRemoveModalOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null);
-
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
-  const [unlockTarget, setUnlockTarget] = useState<UnlockAllTarget | null>(null);
-
   const [addPlayerModalOpen, setAddPlayerModalOpen] = useState(false);
 
-  // ----------- LOAD ITEMS -------------
-  const loadItems = async () => {
+  const loadData = async () => {
     try {
-      const armesRes = await getArmes();
-      const armuresRes = await getArmures();
-      const accessoiresRes = await getAccessoires();
-
-      setArmes(armesRes.data ?? []);
-      setArmures(armuresRes.data ?? []);
-      setAccessoires(accessoiresRes.data ?? []);
-    } catch (err) {
-      console.error(err);
-      toast.error("Erreur lors du chargement des items");
-    }
-  };
-
-  // ----------- LOAD PLAYERS -------------
-  const loadPlayers = async () => {
-    try {
-      const { data, error } = await getPlayers();
-      if (error) {
-        toast.error("Erreur lors du chargement des joueurs");
-        return;
-      }
-      if (!data) return;
-
-      // ---- RESET automatique si + de 7 jours ----
-      await Promise.all(
-        data.map(async (p: any) => {
-          if (p.date_last_looted_item) {
-
-            const lootDate = new Date(p.date_last_looted_item);
-            const now = new Date();
-
-            const diffDays =
-              (now.getTime() - lootDate.getTime()) / (1000 * 60 * 60 * 24);
-
-            if (diffDays > 7) {
-              await resetLastLootDate(p.id);
-              p.date_last_looted_item = null; // mettre à jour localement aussi
-            }
+      const [a, ar, ac, pRes] = await Promise.all([
+        getArmes(), getArmures(), getAccessoires(), getPlayers()
+      ]);
+      setItems({ armes: a.data || [], armures: ar.data || [], accessoires: ac.data || [] });
+      if (pRes.data) {
+        const enriched = await Promise.all(pRes.data.map(async (p: any) => {
+          if (p.date_last_looted_item && (new Date().getTime() - new Date(p.date_last_looted_item).getTime()) / 86400000 > 7) {
+            await resetLastLootDate(p.id);
+            p.date_last_looted_item = null;
           }
-        })
-      );
-
-      const playersWithNames = await Promise.all(
-        data.map(async (p: any) => ({
-          ...p,
-          isPresent: false,
-          armeName: p.idArme ? await getArmeNameById(p.idArme) : "Aucune",
-          armureName: p.idArmure ? await getArmureNameById(p.idArmure) : "Aucune",
-          accessoireName: p.idAccesoires ? await getAccessoireNameById(p.idAccesoires) : "Aucun",
-          armeBoss: p.idArme ? await getArmeBossById(p.idArme) : [],
-          armureBoss: p.idArmure ? await getArmureBossById(p.idArmure) : [],
-          accessoireBoss: p.idAccesoires ? await getAccessoireBossById(p.idAccesoires) : [],
-          roleName: p.idRole ? await getRoleById(p.idRole) : "Aucun",
-          roleColor: p.idRole ? await getColorRoleById(p.idRole) : "#9CA3AF"
-        }))
-      );
-
-      setPlayers(playersWithNames);
-      setFilteredPlayers(playersWithNames);
-
-    } catch (err) {
-      console.error(err);
-      toast.error("Erreur lors du chargement des joueurs");
-    }
+          return {
+            ...p,
+            isPresent: false,
+            armeName: p.idArme ? await getArmeNameById(p.idArme) : null,
+            armureName: p.idArmure ? await getArmureNameById(p.idArmure) : null,
+            accessoireName: p.idAccesoires ? await getAccessoireNameById(p.idAccesoires) : null,
+            armeBoss: p.idArme ? await getArmeBossById(p.idArme) : [],
+            armureBoss: p.idArmure ? await getArmureBossById(p.idArmure) : [],
+            accessoireBoss: p.idAccesoires ? await getAccessoireBossById(p.idAccesoires) : [],
+            roleName: p.idRole ? await getRoleById(p.idRole) : null,
+            roleColor: p.idRole ? await getColorRoleById(p.idRole) : "#9CA3AF"
+          };
+        }));
+        setPlayers(enriched);
+        setFilteredPlayers(enriched);
+      }
+    } catch (err) { toast.error(t("admin.load_error")); }
   };
+
+  useEffect(() => { loadData(); }, []);
 
   useEffect(() => {
-    loadPlayers();
-    loadItems();
-  }, []);
-
-  // ----------- FILTER PLAYERS -------------
-  useEffect(() => {
-    if (selectedBoss) return;
-
-    if (!selectedFilter) {
-      setFilteredPlayers(players);
-      return;
-    }
-
-    const results = players.filter(
-      (p) =>
-        p.armeName === selectedFilter ||
-        p.armureName === selectedFilter ||
-        p.accessoireName === selectedFilter
-    );
-
-    setFilteredPlayers(results);
-  }, [selectedFilter, players, selectedBoss]);
-
-  // ----------- FILTER BY BOSS -------------
-  const handleBossClick = (boss: string) => {
-    setSelectedBoss(boss);
-
-    const filtered = players.filter(p =>
-      p.isPresent &&
-      (p.armeBoss?.includes(boss) ||
-       p.armureBoss?.includes(boss) ||
-       p.accessoireBoss?.includes(boss))
-    );
-
-    setFilteredPlayers(filtered);
-  };
-
-  const resetBossFilter = () => {
-    setSelectedBoss(null);
-    setFilteredPlayers(players.filter(p => p.isPresent));
-  };
-
-  const togglePresence = (playerId: string) => {
-    const updated = players.map(p =>
-      p.id === playerId ? { ...p, isPresent: !p.isPresent } : p
-    );
-
-    setPlayers(updated);
-
+    let result = players;
     if (selectedBoss) {
-      const filtered = updated.filter(p =>
-        p.isPresent &&
-        (p.armeBoss?.includes(selectedBoss) ||
-         p.armureBoss?.includes(selectedBoss) ||
-         p.accessoireBoss?.includes(selectedBoss))
-      );
-      setFilteredPlayers(filtered);
+      result = result.filter(p => p.isPresent && (
+        p.armeBoss?.some(b => b[lang] === selectedBoss) ||
+        p.armureBoss?.some(b => b[lang] === selectedBoss) ||
+        p.accessoireBoss?.some(b => b[lang] === selectedBoss)
+      ));
     } else if (selectedFilter) {
-      const filtered = updated.filter(
-        (p) =>
-          p.isPresent &&
-          (p.armeName === selectedFilter ||
-           p.armureName === selectedFilter ||
-           p.accessoireName === selectedFilter)
-      );
-      setFilteredPlayers(filtered);
-    } else {
-      setFilteredPlayers(updated.filter(p => p.isPresent));
+      result = result.filter(p => p.armeName?.[lang] === selectedFilter || p.armureName?.[lang] === selectedFilter || p.accessoireName?.[lang] === selectedFilter);
     }
-  };
-
-  const resetPresence = () => {
-    const resetPlayers = players.map(p => ({ ...p, isPresent: false }));
-    setPlayers(resetPlayers);
-    setFilteredPlayers(resetPlayers);
-  };
-
-  const setAllPresence = () => {
-    const resetPlayers = players.map(p => ({ ...p, isPresent: true }));
-    setPlayers(resetPlayers);
-    setFilteredPlayers(resetPlayers);
-  };
+    setFilteredPlayers(result);
+  }, [selectedFilter, selectedBoss, players, lang]);
 
   const bossCounts = useMemo(() => {
-    const bosses: {
-      armes: Record<string, number>;
-      armures: Record<string, number>;
-      accessoires: Record<string, number>;
-    } = { armes: {}, armures: {}, accessoires: {} };
+    const c: Record<string, Record<string, number>> = { armes: {}, armures: {}, accessoires: {} };
+    
+    players.filter(p => p.isPresent).forEach(p => {
+      if (!p.has_looted_arme) p.armeBoss?.forEach(b => c.armes[b[lang]] = (c.armes[b[lang]] || 0) + 1);
+      if (!p.has_looted_armure) p.armureBoss?.forEach(b => c.armures[b[lang]] = (c.armures[b[lang]] || 0) + 1);
+      if (!p.has_looted_accessoires) p.accessoireBoss?.forEach(b => c.accessoires[b[lang]] = (c.accessoires[b[lang]] || 0) + 1);
+    });
 
-    players
-      .filter(p => p.isPresent)
-      .forEach((p) => {
-        if (!p.has_looted_arme) p.armeBoss?.forEach(b => { bosses.armes[b] = (bosses.armes[b] || 0) + 1; });
-        if (!p.has_looted_armure) p.armureBoss?.forEach(b => { bosses.armures[b] = (bosses.armures[b] || 0) + 1; });
-        if (!p.has_looted_accessoires) p.accessoireBoss?.forEach(b => { bosses.accessoires[b] = (bosses.accessoires[b] || 0) + 1; });
-      });
+    const sort = (obj: Record<string, number>): [string, number][] => 
+      Object.entries(obj)
+        .filter(([, v]) => v > 0)
+        .sort((a, b) => b[1] - a[1]);
 
-    const entrySort = (obj: Record<string, number>) =>
-      Object.entries(obj).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1]);
-
-    return {
-      armes: entrySort(bosses.armes),
-      armures: entrySort(bosses.armures),
-      accessoires: entrySort(bosses.accessoires)
+    return { 
+        armes: sort(c.armes), 
+        armures: sort(c.armures), 
+        accessoires: sort(c.accessoires) 
     };
-  }, [players]);
-
-  const openModal = (playerId: string, itemType: "arme" | "armure" | "accessoire") => {
-    const player = players.find((p) => p.id === playerId);
-    if (!player) return;
-
-    const hasLooted =
-      itemType === "arme" ? player.has_looted_arme :
-      itemType === "armure" ? player.has_looted_armure :
-      player.has_looted_accessoires;
-
-    const mode: BlockMode = hasLooted ? "unblock" : "block";
-
-    setTarget({ playerId, itemType, mode, playerName: player.name });
-    setModalOpen(true);
-  };
+  }, [players, lang]);
 
   const confirmBlock = async () => {
     if (!target) return;
-    const player = players.find((p) => p.id === target.playerId);
-    if (!player) return;
-
     try {
       await setPlayerHasLooted(target.playerId, target.mode === "block", target.itemType);
-      toast.success(`Élément ${target.mode === "block" ? "bloqué" : "débloqué"} pour ${player.name}`);
-      await loadPlayers();
-    } catch (err) {
-      console.error(err);
-      toast.error("Erreur lors de l'action");
-    } finally {
-      setModalOpen(false);
-      setTarget(null);
-    }
-  };
-
-  const openRemoveModal = (playerId: string, itemType: "arme" | "armure" | "accessoire") => {
-    const player = players.find((p) => p.id === playerId);
-    setRemoveTarget({ playerId, itemType, playerName: player?.name });
-    setRemoveModalOpen(true);
-  };
-
-  const removeItem = async (playerId: string, itemType: "arme" | "armure" | "accessoire") => {
-    try {
-      await updatePlayer(playerId, {
-        [itemType === "arme" ? "idArme" : itemType === "armure" ? "idArmure" : "idAccesoires"]: null,
-        [itemType === "arme" ? "has_looted_arme" : itemType === "armure" ? "has_looted_armure" : "has_looted_accessoires"]: false
-      });
-      toast.success("Item retiré !");
-      await loadPlayers();
-    } catch (err) {
-      console.error(err);
-      toast.error("Erreur lors du retrait");
-    }
-  };
-
-  const confirmRemove = async () => {
-    if (!removeTarget) return;
-    await removeItem(removeTarget.playerId, removeTarget.itemType);
-    setRemoveModalOpen(false);
-    setRemoveTarget(null);
-  };
-
-  const unlockAll = async () => {
-    try {
-      await Promise.all(
-        players.map((p) =>
-          updatePlayer(p.id, {
-            has_looted_arme: false,
-            has_looted_armure: false,
-            has_looted_accessoires: false,
-            idArme: null,
-            idArmure: null,
-            idAccesoires: null,
-            idRole: null
-          })
-        )
-      );
-      toast.success("Tous les items ont été réinitialisés !");
-      await loadPlayers();
-    } catch (err) {
-      console.error(err);
-      toast.error("Erreur lors du déblocage");
-    } finally {
-      setUnlockModalOpen(false);
-    }
-  };
-
-  const handlePlayerAdded = async (name: string, password: string) => {
-    try {
-      const result = await createPlayer(name, password);
-      if (!result) {
-        toast.error("Erreur lors de la création du joueur");
-        return;
-      }
-
-      await loadPlayers();
-    } catch (err) {
-      console.error(err);
-      toast.error("Erreur lors de la création du joueur");
-    }
+      toast.success(t("admin.action_success"));
+      await loadData();
+    } catch { toast.error(t("admin.action_error")); }
+    setModalOpen(false);
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 p-4">
-      <Header onUnlockAll={() => setUnlockModalOpen(true)} />
-      <BossCounts
-        bossCounts={bossCounts}
-        selectedBoss={selectedBoss}
-        onBossClick={handleBossClick}
-        onReset={resetBossFilter}
-      />
-
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <FilterBar
-          selectedFilter={selectedFilter}
-          setSelectedFilter={setSelectedFilter}
-          armes={armes}
-          armures={armures}
-          accessoires={accessoires}
+    <div className="min-h-screen bg-[#0a0b10] bg-[radial-gradient(ellipse_at_top,_rgba(88,28,135,0.15)_0%,_rgba(10,11,16,1)_80%)] text-zinc-100 pb-20">
+      <div className="max-w-7xl mx-auto space-y-6 p-4 md:p-10 animate-in fade-in duration-500">
+        
+        <Header onUnlockAll={() => setUnlockModalOpen(true)} />
+        
+        <BossCounts 
+          bossCounts={bossCounts} 
+          selectedBoss={selectedBoss} 
+          onBossClick={setSelectedBoss} 
+          onReset={() => setSelectedBoss(null)} 
         />
-        <button onClick={resetPresence} className="px-4 pt-1 pb-1 rounded bg-primary/90 text-primary-foreground font-medium hover:bg-primary/80 transition-colors w-full sm:w-auto">
-          Reset Présence
-        </button>
-        <button onClick={setAllPresence} className="px-4 pt-1 pb-1 rounded bg-primary/90 text-primary-foreground font-medium hover:bg-primary/80 transition-colors w-full sm:w-auto">
-          Tout mettre Présent
-        </button>
-        <button onClick={() => setAddPlayerModalOpen(true)} className="px-4 pt-1 pb-1 rounded bg-primary/90 text-white font-medium hover:bg-primary/80 transition-colors w-full sm:w-auto">
-          Ajouter un joueur
-        </button>
+
+        {/* --- ZONE DE CONTRÔLE --- */}
+        <div className="space-y-4">
+          <FilterBar 
+            selectedFilter={selectedFilter} 
+            setSelectedFilter={setSelectedFilter} 
+            {...items} 
+          />
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Groupe Présence */}
+            <div className="flex flex-1 gap-2 bg-violet-950/20 p-1.5 rounded-xl border border-fuchsia-500/10 shadow-inner">
+              <Button 
+                variant="ghost" 
+                onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: false})))}
+                className="flex-1 text-fuchsia-300/70 hover:text-white text-[10px] font-black uppercase tracking-widest h-10 hover:bg-fuchsia-600/20 transition-all active:scale-95"
+              >
+                <RotateCcw className="mr-2 h-3 w-3" /> {t("admin.reset_presence")}
+              </Button>
+              
+              <div className="w-[1px] bg-fuchsia-500/10 my-2" />
+
+              <Button 
+                variant="ghost" 
+                onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: true})))}
+                className="flex-1 text-fuchsia-300/70 hover:text-white text-[10px] font-black uppercase tracking-widest h-10 hover:bg-fuchsia-600/20 transition-all active:scale-95"
+              >
+                <Users className="mr-2 h-3 w-3" /> {t("admin.set_all_presence")}
+              </Button>
+            </div>
+
+            {/* Bouton Ajouter */}
+            <Button 
+              onClick={() => setAddPlayerModalOpen(true)}
+              className="bg-gradient-to-br from-gaming-gold to-amber-600 text-black font-black uppercase tracking-widest text-[10px] h-12 sm:h-auto px-10 rounded-xl shadow-lg hover:from-white hover:to-zinc-200 transition-all active:scale-95 border-b-2 border-amber-800"
+            >
+              <UserPlus className="mr-2 h-4 w-4" /> {t("admin.add_player")}
+            </Button>
+          </div>
+        </div>
+
+        {/* --- GRILLE DES JOUEURS --- */}
+        <div className="pt-4 relative">
+          <div className="absolute -inset-10 bg-fuchsia-600/5 blur-[120px] pointer-events-none opacity-50" />
+          
+          <PlayerGrid
+            players={filteredPlayers}
+            openModal={(id, type) => {
+              const p = players.find(x => x.id === id);
+              if (!p) return;
+              const has = type === "arme" ? p.has_looted_arme : type === "armure" ? p.has_looted_armure : p.has_looted_accessoires;
+              setTarget({ playerId: id, itemType: type, mode: has ? "unblock" : "block", playerName: p.name });
+              setModalOpen(true);
+            }}
+            openRemoveModal={(id, type) => {
+              const p = players.find(x => x.id === id);
+              setRemoveTarget({ playerId: id, itemType: type, playerName: p?.name });
+              setRemoveModalOpen(true);
+            }}
+            togglePresence={(id) => setPlayers(prev => prev.map(p => p.id === id ? { ...p, isPresent: !p.isPresent } : p))}
+            loadPlayers={loadData}
+          />
+        </div>
       </div>
 
-      <PlayerGrid
-        players={filteredPlayers}
-        openModal={openModal}
-        openRemoveModal={openRemoveModal}
-        togglePresence={togglePresence}
-        loadPlayers={loadPlayers}
-      />
-
       <BlockModal open={modalOpen} onOpenChange={setModalOpen} target={target} onConfirm={confirmBlock} />
-      <RemoveModal open={removeModalOpen} onOpenChange={setRemoveModalOpen} target={removeTarget} onConfirm={confirmRemove} />
-      <UnlockAllModal open={unlockModalOpen} onOpenChange={setUnlockModalOpen} target={unlockTarget} onConfirm={unlockAll} />
-      <AddPlayerModal
-        open={addPlayerModalOpen}
-        onOpenChange={setAddPlayerModalOpen}
-        onPlayerAdded={handlePlayerAdded}
-        loadPlayers={loadPlayers}
-      />
+      <RemoveModal open={removeModalOpen} onOpenChange={setRemoveModalOpen} target={removeTarget} onConfirm={async () => {
+        if (!removeTarget) return;
+        await updatePlayer(removeTarget.playerId, { [removeTarget.itemType === "arme" ? "idArme" : removeTarget.itemType === "armure" ? "idArmure" : "idAccesoires"]: null });
+        await loadData();
+        setRemoveModalOpen(false);
+      }} />
+      <UnlockAllModal open={unlockModalOpen} onOpenChange={setUnlockModalOpen} target={null} onConfirm={async () => {
+        await Promise.all(players.map(p => updatePlayer(p.id, { has_looted_arme: false, has_looted_armure: false, has_looted_accessoires: false, idArme: null, idArmure: null, idAccesoires: null })));
+        await loadData();
+        setUnlockModalOpen(false);
+      }} />
+      <AddPlayerModal open={addPlayerModalOpen} onOpenChange={setAddPlayerModalOpen} onPlayerAdded={async (n, p) => { await createPlayer(n, p); await loadData(); }} loadPlayers={loadData} />
     </div>
   );
 };

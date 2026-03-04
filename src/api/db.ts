@@ -4,26 +4,28 @@ import bcrypt from "bcryptjs";
 // --- Items & Players ---
 
 export async function getArmes() {
-  const { data, error } = await supabase.from("armes").select("*").order("name");
+  // On trie par la clé 'fr' à l'intérieur du JSONB
+  const { data, error } = await supabase.from("armes").select("*").order("name->>fr");
   return { data, error };
 }
 
 export async function getArmures() {
-  const { data, error } = await supabase.from("armures").select("*").order("name");
+  const { data, error } = await supabase.from("armures").select("*").order("name->>fr");
   return { data, error };
 }
 
 export async function getAccessoires() {
-  const { data, error } = await supabase.from("accessoires").select("*").order("name");
+  const { data, error } = await supabase.from("accessoires").select("*").order("name->>fr");
   return { data, error };
 }
 
 export async function getRoles() {
-  const { data, error } = await supabase.from("role").select("*").order("name");
+  const { data, error } = await supabase.from("role").select("*").order("name->>fr");
   return { data, error };
 }
 
 export async function getPlayers() {
+  // Les joueurs sont triés par leur nom (qui reste un texte simple)
   const { data, error } = await supabase.from("player").select("*").order("name");
   return { data, error };
 }
@@ -57,7 +59,6 @@ export async function setPlayerHasLooted(
     accessoire: "has_looted_accessoires",
   } as const;
 
-  // Date du jour au format YYYY-MM-DD
   const today = new Date().toISOString().split("T")[0];
 
   const updates = {
@@ -68,12 +69,13 @@ export async function setPlayerHasLooted(
   return updatePlayer(id, updates);
 }
 
-// --- Récupérer le nom d'un item ---
+// --- Récupérer l'objet name d'un item ---
+// Note : Ces fonctions renvoient maintenant l'objet {fr, en}
 
 export async function getArmeNameById(id: string) {
   const { data, error } = await supabase.from("armes").select("name").eq("id", id).maybeSingle();
   if (error) throw error;
-  return data?.name || null;
+  return data?.name || null; 
 }
 
 export async function getArmureNameById(id: string) {
@@ -93,7 +95,7 @@ export async function getAccessoireNameById(id: string) {
 export async function getRoleById(id: string) {
   const { data, error } = await supabase.from("role").select("name").eq("id", id).maybeSingle();
   if (error) throw error;
-  return data?.name || null;
+  return data?.name || null; // Renvoie l'objet {fr, en}
 }
 
 export async function getColorRoleById(id: string) {
@@ -102,44 +104,37 @@ export async function getColorRoleById(id: string) {
   return data?.color || null;
 }
 
-// --- Récupérer les boss d’un item (plusieurs possibles) ---
+// --- Récupérer les boss d’un item ---
+// Attention : boss.name est aussi un objet JSONB maintenant
 
-// Pour une arme (1 boss max)
-export async function getArmeBossById(id: string): Promise<string[]> {
+export async function getArmeBossById(id: string): Promise<any[]> {
   const { data, error } = await supabase
     .from("armes")
     .select("boss:boss(name)")
     .eq("id", id);
 
   if (error) throw error;
-
-  // data peut être [] ou [{ boss: { name: string } }]
-  return data?.map(d => d.boss?.name).filter((n): n is string => !!n) || [];
+  return data?.map(d => d.boss?.name).filter(n => !!n) || [];
 }
 
-// Pour une armure (plusieurs bosses possibles)
-export async function getArmureBossById(id: string): Promise<string[]> {
+export async function getArmureBossById(id: string): Promise<any[]> {
   const { data, error } = await supabase
     .from("armures_boss")
     .select("boss:boss(name)")
     .eq("idArmure", id);
 
   if (error) throw error;
-
-  // data est un tableau de lignes, chacune avec boss.name
-  return data?.map(d => d.boss?.name).filter((n): n is string => !!n) || [];
+  return data?.map(d => d.boss?.name).filter(n => !!n) || [];
 }
 
-// Pour un accessoire (plusieurs bosses possibles)
-export async function getAccessoireBossById(id: string): Promise<string[]> {
+export async function getAccessoireBossById(id: string): Promise<any[]> {
   const { data, error } = await supabase
     .from("accessoires_boss")
     .select("boss:boss(name)")
     .eq("idAccessoire", id);
 
   if (error) throw error;
-
-  return data?.map(d => d.boss?.name).filter((n): n is string => !!n) || [];
+  return data?.map(d => d.boss?.name).filter(n => !!n) || [];
 }
 
 export async function deletePlayer(id: string) {
@@ -157,15 +152,13 @@ export const createPlayer = async (name: string, password: string) => {
 
   const { data, error } = await supabase
     .from("player")
-    .insert([{ name, mdp: hashed }]);
+    .insert([{ name, mdp: hashed, firstCo: true }]); // On s'assure que firstCo est true à la création
 
   if (error) throw error;
-
-  // Retourne uniquement l'objet créé
   return data?.[0] ?? null;
 };
 
-export const resetLastLootDate = async (playerId) => {
+export const resetLastLootDate = async (playerId: string) => {
   return await supabase
     .from("player")
     .update({ date_last_looted_item: null })

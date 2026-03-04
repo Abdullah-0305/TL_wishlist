@@ -1,24 +1,25 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Swords, Shield as ShieldIcon, Gem, Save } from "lucide-react";
+import { Swords, Shield as ShieldIcon, Gem, Save, Info, Lock, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "../lib/supabase";
 import { getArmes, getArmures, getAccessoires, getRoles } from "@/api/db";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useTranslation, Trans } from "react-i18next";
+import { cn } from "@/lib/utils";
 
 interface Item {
   id: number;
-  name: string;
+  name: { fr: string; en: string; };
 }
 
 const Wishlist = () => {
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language as "fr" | "en";
 
   if (!user) return <Navigate to="/login" replace />;
 
@@ -46,299 +47,237 @@ const Wishlist = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const { data: w } = await getArmes();
-      const { data: a } = await getArmures();
-      const { data: ac } = await getAccessoires();
-      const { data: r } = await getRoles();
+      const [w, a, ac, r] = await Promise.all([getArmes(), getArmures(), getAccessoires(), getRoles()]);
+      setWeapons((w.data as unknown as Item[]) || []);
+      setArmors((a.data as unknown as Item[]) || []);
+      setAccessories((ac.data as unknown as Item[]) || []);
+      setRoles((r.data as unknown as Item[]) || []);
 
-      setWeapons(w || []);
-      setArmors(a || []);
-      setAccessories(ac || []);
-      setRoles(r || []);
-
-      const { data: player, error } = await supabase
-        .from("player")
-        .select("*")
-        .eq("name", user.name)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!player) {
-        toast.error(t("wishlist.user_not_found"));
-        return;
-      }
+      const { data: player } = await supabase.from("player").select("*").eq("name", user.name).maybeSingle();
+      if (!player) return;
 
       if (player.idRole) setRole(player.idRole.toString());
-      if (player.idArme) {
-        setSelectedWeapon(player.idArme.toString());
-        setWeaponLocked(true);
-      }
-      if (player.idArmure) {
-        setSelectedArmor(player.idArmure.toString());
-        setArmorLocked(true);
-      }
-      if (player.idAccesoires) {
-        setSelectedAccessory(player.idAccesoires.toString());
-        setAccessoryLocked(true);
-      }
+      if (player.idArme) { setSelectedWeapon(player.idArme.toString()); setWeaponLocked(true); }
+      if (player.idArmure) { setSelectedArmor(player.idArmure.toString()); setArmorLocked(true); }
+      if (player.idAccesoires) { setSelectedAccessory(player.idAccesoires.toString()); setAccessoryLocked(true); }
 
       setHasLootedArme(player.has_looted_arme);
       setHasLootedArmure(player.has_looted_armure);
       setHasLootedAccessoire(player.has_looted_accessoires);
-
     } catch (err) {
-      console.error(err);
       toast.error(t("wishlist.load_error"));
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const handleSave = () => {
-    if (!role) {
-      toast.error(t("wishlist.role_required"));
-      return;
-    }
+    if (!role) { toast.error(t("wishlist.role_required")); return; }
     setModalOpen(true);
   };
 
   const confirmSave = async () => {
     setModalOpen(false);
     try {
-      const { data: player, error: playerError } = await supabase
-        .from("player")
-        .select("id")
-        .eq("name", user.name)
-        .maybeSingle();
-
-      if (playerError || !player) throw playerError || new Error("Joueur introuvable");
+      const { data: player } = await supabase.from("player").select("id").eq("name", user.name).maybeSingle();
+      if (!player) throw new Error("Joueur introuvable");
 
       const updateData: any = { idRole: parseInt(role) };
-      if (!weaponLocked) updateData.idArme = selectedWeapon ? parseInt(selectedWeapon) : null;
-      if (!armorLocked) updateData.idArmure = selectedArmor ? parseInt(selectedArmor) : null;
-      if (!accessoryLocked) updateData.idAccesoires = selectedAccessory ? parseInt(selectedAccessory) : null;
+      if (!weaponLocked) updateData.idArme = selectedWeapon && selectedWeapon !== "null" ? parseInt(selectedWeapon) : null;
+      if (!armorLocked) updateData.idArmure = selectedArmor && selectedArmor !== "null" ? parseInt(selectedArmor) : null;
+      if (!accessoryLocked) updateData.idAccesoires = selectedAccessory && selectedAccessory !== "null" ? parseInt(selectedAccessory) : null;
 
-      const { error } = await supabase
-        .from("player")
-        .update(updateData)
-        .eq("id", player.id);
-
+      const { error } = await supabase.from("player").update(updateData).eq("id", player.id);
       if (error) throw error;
 
       toast.success(t("wishlist.save_success"));
       await loadData();
     } catch (err) {
-      console.error(err);
       toast.error(t("wishlist.save_error"));
     }
   };
 
-  if (loading) return <p className="text-center text-white">{t("wishlist.loading")}</p>;
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-12 h-12 border-4 border-fuchsia-500/20 border-t-fuchsia-500 rounded-full animate-spin" />
+    </div>
+  );
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-
-      {/* 📌 RÈGLES DE LOOT */}
-      <Card className="border-primary/30 shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-xl">{t("wishlist.rules_title")}</CardTitle>
-          <CardDescription>
-            {t("wishlist.rules_desc")}
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="space-y-4 text-sm leading-relaxed">
-          <p>
-            <Trans i18nKey="wishlist.basic_rule">
-              💠 Vous pouvez mettre dans la wishlist <b>un seul item pour</b> les Armes, les Armures et les Accessoires.
-            </Trans>
-            <br />
-            <Trans i18nKey="wishlist.lock_rule">
-              🔒 Une fois la wishlist validée, <b>vous ne pourrez plus modifier vos choix</b>.
-            </Trans>
-          </p>
-
-          <div className="border-t border-primary/20 pt-4 space-y-3">
-            <h3 className="font-semibold text-lg">{t("wishlist.boss_rules_title")}</h3>
-
-            <p>
-              <strong>{t("wishlist.rule_1_title")}</strong><br />
-              {t("wishlist.rule_1_desc")}
-            </p>
-
-            <p>
-              <strong>{t("wishlist.rule_2_title")}</strong><br />
-              {t("wishlist.rule_2_desc")}
-            </p>
-
-            <p>
-              <strong>{t("wishlist.rule_3_title")}</strong><br />
-              <Trans i18nKey="wishlist.rule_3_desc">
-                Priorité aux joueurs <strong>présents, anciens et actifs.</strong> Une fois un loot obtenu, un délai de 7 jours est requis avant de pouvoir en recevoir un autre.
-              </Trans>
-            </p>
-
-            <p>
-              <strong>{t("wishlist.rule_4_title")}</strong><br />
-              {t("wishlist.rule_4_desc")}
-            </p>
+    <div className="max-w-5xl mx-auto space-y-10 pb-20 animate-in fade-in duration-700">
+      
+      {/* 📜 RÈGLES DE GUILDE */}
+      <section className="relative overflow-hidden bg-[#1e1333]/40 backdrop-blur-md border border-fuchsia-500/20 rounded-3xl shadow-2xl">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-fuchsia-600 via-purple-500 to-gaming-gold" />
+        <div className="p-6 md:p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-fuchsia-500/10 rounded-lg">
+              <Info className="h-5 w-5 text-fuchsia-400" />
+            </div>
+            <h2 className="text-2xl font-black uppercase tracking-tighter text-white">
+              {t("wishlist.rules_title")}
+            </h2>
           </div>
 
-          <div className="border-t border-primary/20 pt-4 space-y-2">
-            <h3 className="font-semibold text-lg">{t("wishlist.change_title")}</h3>
+          <div className="grid md:grid-cols-2 gap-8 text-sm leading-relaxed">
+            <div className="space-y-4 text-fuchsia-100/70">
+              <div className="bg-white/5 p-4 rounded-xl border-l-4 border-fuchsia-500">
+                <Trans i18nKey="wishlist.basic_rule" components={{ 1: <b className="text-white" /> }}>
+                  💠 Vous pouvez mettre dans la wishlist <b>un seul item pour</b> les Armes, les Armures et les Accessoires.
+                </Trans>
+              </div>
+              <div className="bg-white/5 p-4 rounded-xl border-l-4 border-red-500/50 italic font-bold text-fuchsia-200">
+                <Trans i18nKey="wishlist.lock_rule" components={{ 1: <span className="text-red-400" /> }}>
+                  🔒 Une fois la wishlist validée, <b>vous ne pourrez plus modifier vos choix</b>.
+                </Trans>
+              </div>
+            </div>
 
-            <p>
-              <Trans i18nKey="wishlist.change_desc">
-                Si vous avez déjà obtenu <strong>un item de votre wishlist</strong> et que vous souhaitez
-                <strong> modifier votre choix</strong>, vous devez impérativement
-                <strong> contacter un membre de la Co-Gestion</strong> par message privé
-                (Discord ou autre).
-              </Trans>
-            </p>
+            <div className="space-y-4 border-l border-white/5 pl-0 md:pl-8">
+              <h3 className="font-black text-xs uppercase tracking-widest text-gaming-gold mb-2">
+                {t("wishlist.boss_rules_title")}
+              </h3>
+              <div className="space-y-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="group">
+                    <p className="text-white font-bold text-[13px] mb-1 group-hover:text-gaming-gold transition-colors">
+                      {t(`wishlist.rule_${i}_title`)}
+                    </p>
+                    <div className="text-xs text-fuchsia-100/50">
+                      {i === 3 ? (
+                        <Trans i18nKey="wishlist.rule_3_desc" components={{ 1: <strong className="text-white font-bold" /> }}>
+                          Priorité aux joueurs <strong>présents, anciens et actifs.</strong> Une fois un loot obtenu...
+                        </Trans>
+                      ) : (
+                        t(`wishlist.rule_${i}_desc`)
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+          
+          <div className="mt-8 pt-6 border-t border-white/5">
+             <h3 className="font-black text-xs uppercase tracking-widest text-fuchsia-400 mb-2">{t("wishlist.change_title")}</h3>
+             <div className="text-xs text-fuchsia-100/40 leading-relaxed">
+                <Trans i18nKey="wishlist.change_desc" components={{ 1: <strong />, 3: <strong />, 5: <strong /> }}>
+                  Si vous avez déjà obtenu <strong>un item</strong>... contactez la <strong>Co-Gestion</strong>.
+                </Trans>
+             </div>
+          </div>
+        </div>
+      </section>
 
-      {/* ROLE */}
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle>{t("wishlist.role_title")}</CardTitle>
-          <CardDescription>{t("wishlist.role_desc")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Select value={role} onValueChange={setRole}>
-            <SelectTrigger>
-              <SelectValue placeholder={t("wishlist.role_placeholder")} />
-            </SelectTrigger>
-            <SelectContent>
-              {roles.map(r => (
-                <SelectItem key={r.id} value={r.id.toString()}>
-                  {r.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
-      {/* ITEMS */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {/* ARME */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Swords className="text-primary" />
-              <CardTitle>{t("wishlist.weapons_title")}</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Select disabled={weaponLocked} value={selectedWeapon} onValueChange={setSelectedWeapon}>
-              <SelectTrigger className={weaponLocked ? "opacity-50" : ""}>
-                <SelectValue placeholder={t("wishlist.select_weapon")} />
+      {/* 🛡️ CONFIGURATION DU PERSONNAGE */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        
+        {/* SÉLECTION DU RÔLE */}
+        <div className="lg:col-span-3 bg-[#1e1333]/60 border border-fuchsia-500/20 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6">
+          <div className="flex-shrink-0">
+            <h3 className="text-lg font-black uppercase tracking-tighter text-white">{t("wishlist.role_title")}</h3>
+            <p className="text-xs text-fuchsia-100/40 uppercase tracking-widest">{t("wishlist.role_desc")}</p>
+          </div>
+          <div className="flex-grow w-full">
+            <Select value={role} onValueChange={setRole}>
+              <SelectTrigger className="bg-black/40 border-fuchsia-500/20 text-white h-12 rounded-xl focus:ring-gaming-gold">
+                <SelectValue placeholder={t("wishlist.select_role")} />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="null">{t("wishlist.none")}</SelectItem>
-                {weapons.map(w => (
-                  <SelectItem
-                    key={w.id}
-                    value={w.id.toString()}
-                    className={hasLootedArme && selectedWeapon == w.id.toString() ? "text-purple-400" : ""}
-                  >
-                    {w.name} {hasLootedArme && selectedWeapon == w.id.toString() && ` — ${t("wishlist.looted_tag")}`}
+              <SelectContent className="bg-[#1e1333] border-fuchsia-500/30 text-white">
+                {roles.map(r => (
+                  <SelectItem key={r.id} value={r.id.toString()} className="focus:bg-fuchsia-500/20 cursor-pointer">
+                    {r.name[currentLang] || r.name['fr']}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {weaponLocked && <p className="text-xs text-red-400 mt-2">{t("wishlist.already_chosen")}</p>}
-            {hasLootedArme && <p className="text-xs text-purple-400 mt-1">{t("wishlist.already_looted")}</p>}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* ARMURE */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <ShieldIcon className="text-primary" />
-              <CardTitle>{t("wishlist.armors_title")}</CardTitle>
+        {/* SLOTS D'ÉQUIPEMENT */}
+        {[
+          { id: 'arme', title: t("wishlist.weapons_title"), icon: Swords, color: 'text-amber-400', items: weapons, locked: weaponLocked, selected: selectedWeapon, setter: setSelectedWeapon, looted: hasLootedArme, placeholder: t("wishlist.select_weapon") },
+          { id: 'armure', title: t("wishlist.armors_title"), icon: ShieldIcon, color: 'text-fuchsia-400', items: armors, locked: armorLocked, selected: selectedArmor, setter: setSelectedArmor, looted: hasLootedArmure, placeholder: t("wishlist.select_armor") },
+          { id: 'accessoire', title: t("wishlist.accessories_title"), icon: Gem, color: 'text-purple-400', items: accessories, locked: accessoryLocked, selected: selectedAccessory, setter: setSelectedAccessory, looted: hasLootedAccessoire, placeholder: t("wishlist.select_accessory") }
+        ].map((slot) => (
+          <div key={slot.id} className={cn(
+            "relative group bg-[#1e1333]/60 border rounded-2xl p-6 transition-all duration-300",
+            slot.looted ? "border-purple-500/50 shadow-lg shadow-purple-950/20" : "border-fuchsia-500/20"
+          )}>
+            <div className="flex items-center justify-between mb-6">
+              <div className={cn("p-3 rounded-xl bg-white/5 border border-white/5", slot.color)}>
+                <slot.icon className="h-6 w-6" />
+              </div>
+              {slot.locked && <Lock className="h-4 w-4 text-zinc-500" />}
+              {slot.looted && <CheckCircle2 className="h-5 w-5 text-purple-400 animate-pulse" />}
             </div>
-          </CardHeader>
-          <CardContent>
-            <Select disabled={armorLocked} value={selectedArmor} onValueChange={setSelectedArmor}>
-              <SelectTrigger className={armorLocked ? "opacity-50" : ""}>
-                <SelectValue placeholder={t("wishlist.select_armor")} />
+
+            <h3 className="font-black uppercase tracking-widest text-[10px] text-fuchsia-300/50 mb-4">{slot.title}</h3>
+
+            <Select disabled={slot.locked} value={slot.selected} onValueChange={slot.setter}>
+              <SelectTrigger className={cn(
+                "bg-black/40 border-white/5 text-white h-11 rounded-lg",
+                slot.locked && "opacity-60 grayscale-[0.5]"
+              )}>
+                <SelectValue placeholder={slot.placeholder} />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="null">{t("wishlist.none")}</SelectItem>
-                {armors.map(a => (
-                  <SelectItem
-                    key={a.id}
-                    value={a.id.toString()}
-                    className={hasLootedArmure && selectedArmor == a.id.toString() ? "text-purple-400" : ""}
-                  >
-                    {a.name} {hasLootedArmure && selectedArmor == a.id.toString() && ` — ${t("wishlist.looted_tag")}`}
+              <SelectContent className="bg-[#1e1333] border-fuchsia-500/30 text-white max-h-[300px]">
+                <SelectItem value="null" className="italic text-zinc-500 cursor-pointer">{t("wishlist.none")}</SelectItem>
+                {slot.items.map(i => (
+                  <SelectItem key={i.id} value={i.id.toString()} className="cursor-pointer">
+                    {i.name[currentLang] || i.name['fr']}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {armorLocked && <p className="text-xs text-red-400 mt-2">{t("wishlist.already_chosen")}</p>}
-            {hasLootedArmure && <p className="text-xs text-purple-400 mt-1">{t("wishlist.already_looted")}</p>}
-          </CardContent>
-        </Card>
 
-        {/* ACCESSOIRES */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Gem className="text-primary" />
-              <CardTitle>{t("wishlist.accessories_title")}</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Select disabled={accessoryLocked} value={selectedAccessory} onValueChange={setSelectedAccessory}>
-              <SelectTrigger className={accessoryLocked ? "opacity-50" : ""}>
-                <SelectValue placeholder={t("wishlist.select_accessory")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="null">{t("wishlist.none")}</SelectItem>
-                {accessories.map(acc => (
-                  <SelectItem
-                    key={acc.id}
-                    value={acc.id.toString()}
-                    className={hasLootedAccessoire && selectedAccessory == acc.id.toString() ? "text-purple-400" : ""}
-                  >
-                    {acc.name} {hasLootedAccessoire && selectedAccessory == acc.id.toString() && ` — ${t("wishlist.looted_tag")}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {accessoryLocked && <p className="text-xs text-red-400 mt-2">{t("wishlist.already_chosen")}</p>}
-            {hasLootedAccessoire && <p className="text-xs text-purple-400 mt-1">{t("wishlist.already_looted")}</p>}
-          </CardContent>
-        </Card>
+            {slot.locked && !slot.looted && <p className="text-[10px] text-red-400/70 mt-3 font-bold uppercase tracking-tighter">{t("wishlist.already_chosen")}</p>}
+            {slot.looted && (
+              <div className="mt-4 p-2 bg-purple-500/10 border border-purple-500/20 rounded-lg text-center">
+                <span className="text-[10px] font-black uppercase text-purple-400 tracking-tighter">
+                  ✨ {t("wishlist.looted_tag")} ✨
+                </span>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
 
-      <div className="flex justify-center">
-        <Button onClick={handleSave}>
-          <Save className="mr-2" /> {t("wishlist.save")}
+      {/* BOUTON SAUVEGARDE */}
+      <div className="flex flex-col items-center gap-4">
+        <Button 
+          onClick={handleSave}
+          className="group relative bg-gradient-to-r from-fuchsia-600 to-purple-700 hover:from-fuchsia-500 hover:to-purple-600 text-white font-black px-12 py-7 h-auto rounded-2xl shadow-2xl shadow-fuchsia-900/40 border-b-4 border-fuchsia-900/60 transition-all active:translate-y-1 active:border-b-0 uppercase tracking-widest text-sm"
+        >
+          <Save className="mr-3 h-5 w-5 group-hover:rotate-12 transition-transform" />
+          {t("wishlist.save")}
         </Button>
       </div>
 
       {/* MODAL DE CONFIRMATION */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="bg-card border-primary/30 max-w-sm mx-auto">
-          <DialogHeader>
-            <DialogTitle>{t("wishlist.modal_title")}</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="bg-[#1e1333] border-fuchsia-500/30 shadow-2xl max-w-sm mx-auto p-0 overflow-hidden border-t-0">
+          <div className="w-full h-1.5 bg-gradient-to-r from-fuchsia-600 via-purple-500 to-gaming-gold" />
+          <div className="p-8 flex flex-col items-center text-center">
+            <div className="w-16 h-16 rounded-2xl bg-fuchsia-500/10 border border-fuchsia-500/30 flex items-center justify-center text-fuchsia-400 mb-6 shadow-glow-fuchsia">
+              <Lock className="h-8 w-8" />
+            </div>
+            <DialogTitle className="text-xl font-black uppercase tracking-tighter text-white mb-2">
+              {t("wishlist.modal_title")}
+            </DialogTitle>
+            <DialogDescription className="text-fuchsia-100/60 text-sm leading-relaxed mb-8">
               {t("wishlist.modal_desc")}
             </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end mt-4 gap-2">
-            <Button variant="outline" onClick={() => setModalOpen(false)}>{t("wishlist.cancel")}</Button>
-            <Button className="bg-gradient-primary" onClick={confirmSave}>{t("wishlist.confirm")}</Button>
+            <div className="flex gap-3 w-full">
+              <Button variant="ghost" className="flex-1 text-fuchsia-300/50 font-bold uppercase tracking-widest text-xs" onClick={() => setModalOpen(false)}>
+                {t("wishlist.cancel")}
+              </Button>
+              <Button className="flex-1 bg-gaming-gold text-black font-black uppercase tracking-widest text-xs shadow-glow-gold hover:bg-white transition-all" onClick={confirmSave}>
+                {t("wishlist.confirm")}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

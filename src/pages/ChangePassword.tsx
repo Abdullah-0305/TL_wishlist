@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import bcrypt from "bcryptjs";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 
 const ChangePassword = () => {
   const { t } = useTranslation();
@@ -40,7 +42,6 @@ const ChangePassword = () => {
 
     try {
       setLoading(true);
-
       const { data: player, error } = await supabase
         .from("player")
         .select("*")
@@ -73,64 +74,95 @@ const ChangePassword = () => {
   };
 
   const renderPasswordInput = (
+    id: string,
+    label: string,
     value: string,
     setValue: any,
     placeholder: string,
     show: boolean,
     setShow: any
   ) => (
-    <div className="relative">
-      <Input
-        type={show ? "text" : "password"}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        className="pr-10 border-primary/30 focus:border-primary"
-      />
-      <button
-        type="button"
-        onClick={() => setShow(!show)}
-        className="absolute inset-y-0 right-2 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
-      >
-        {show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-      </button>
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-[9px] font-black uppercase tracking-widest text-zinc-500 ml-1">
+        {label}
+      </Label>
+      <div className="relative">
+        <Input
+          id={id}
+          type={show ? "text" : "password"}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="bg-black/40 border-white/5 focus:border-fuchsia-500/50 text-white h-10 text-xs rounded-lg pr-10 transition-all placeholder:text-zinc-700"
+        />
+        <button
+          type="button"
+          onClick={() => setShow(!show)}
+          className="absolute inset-y-0 right-0 flex items-center justify-center px-3 text-zinc-600 hover:text-fuchsia-400 transition-colors"
+        >
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
     </div>
   );
 
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
-      <Card className="w-full max-w-md border-primary/20 shadow-glow-primary bg-card/50 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle>{t("change_password.title")}</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {t("change_password.subtitle")}
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {renderPasswordInput(
-            newPassword, 
-            setNewPassword, 
-            t("change_password.placeholder_new"), 
-            showNew, 
-            setShowNew
-          )}
-          {renderPasswordInput(
-            confirm, 
-            setConfirm, 
-            t("change_password.placeholder_confirm"), 
-            showConfirm, 
-            setShowConfirm
-          )}
+    <div className="min-h-screen bg-[#0a0b10] bg-[radial-gradient(circle_at_50%_0%,_rgba(88,28,135,0.15)_0%,_rgba(10,11,16,1)_75%)] flex items-center justify-center p-6">
+      
+      <div className="relative w-full max-w-[360px] animate-in fade-in zoom-in-95 duration-500">
+        <div className="absolute -inset-0.5 bg-fuchsia-500/20 blur-2xl rounded-3xl" />
+        
+        <div className="relative bg-[#1a1129]/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+          
+          <div className="w-full h-[2px] bg-gradient-to-r from-transparent via-fuchsia-500 to-transparent opacity-50" />
 
-          <Button 
-            onClick={handleChange} 
-            className="w-full bg-gradient-primary hover:opacity-90 shadow-glow-primary font-bold" 
-            disabled={loading}
-          >
-            {loading ? t("change_password.loading") : t("change_password.button_update")}
-          </Button>
-        </CardContent>
-      </Card>
+          <div className="p-6 sm:p-8">
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-12 h-12 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-fuchsia-400 mb-4">
+                <ShieldCheck className="h-6 w-6" />
+              </div>
+              <h1 className="text-xl font-black uppercase tracking-[0.2em] text-white">
+                {t("change_password.title")}
+              </h1>
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1 text-center">
+                {t("change_password.subtitle")}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {renderPasswordInput(
+                "new",
+                t("change_password.placeholder_new"),
+                newPassword, 
+                setNewPassword, 
+                "••••••••", 
+                showNew, 
+                setShowNew
+              )}
+              {renderPasswordInput(
+                "confirm",
+                t("change_password.placeholder_confirm"),
+                confirm, 
+                setConfirm, 
+                "••••••••", 
+                showConfirm, 
+                setShowConfirm
+              )}
+
+              <Button 
+                onClick={handleChange} 
+                disabled={loading}
+                className={cn(
+                  "w-full h-11 mt-2 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-black uppercase tracking-widest text-[10px] rounded-lg transition-all",
+                  "shadow-lg shadow-fuchsia-900/20 active:scale-[0.98] disabled:opacity-50"
+                )}
+              >
+                {loading ? "..." : t("change_password.button_update")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
