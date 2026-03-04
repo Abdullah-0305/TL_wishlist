@@ -75,7 +75,11 @@ i18n
                 "error_user": "Utilisateur introuvable",
                 "error_update": "Erreur lors de la mise à jour.",
                 "success": "Mot de passe mis à jour !"
-            }
+            },
+            "maintenance": {
+                "title": "Maintenance en cours",
+                "message": "Nous mettons à jour la forge de la guilde pour l'international. Revenez d'ici quelques minutes, guerrier !"
+            },            
         }
       },
       en: {
@@ -146,6 +150,10 @@ i18n
                 "error_user": "User not found",
                 "error_update": "Error during update.",
                 "success": "Password updated!"
+            },
+            "maintenance": {
+                "title": "Maintenance in progress",
+                "message": "We are updating the guild's forge for international players. Come back in a few minutes, warrior!"
             }
         }
       }
