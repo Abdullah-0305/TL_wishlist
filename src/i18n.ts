@@ -49,7 +49,9 @@ i18n
                 "modal_title": "Confirmer la sauvegarde",
                 "modal_desc": "Vos items sélectionnés ne pourront plus être modifiés. Êtes-vous sûr ?",
                 "cancel": "Annuler",
-                "confirm": "Confirmer"
+                "confirm": "Confirmer",
+                "save_success": "Wishlist sauvegardée !",
+                "save_error": "Erreur lors de la sauvegarde"
             },
             "login": {
                 "title": "Bienvenue sur Akatsushi",
@@ -220,7 +222,9 @@ i18n
                 "modal_title": "Confirm Save",
                 "modal_desc": "Selected items cannot be modified later. Are you sure?",
                 "cancel": "Cancel",
-                "confirm": "Confirm"
+                "confirm": "Confirm",
+                "save_success": "Wishlist saved!",
+                "save_error": "Error during save"
             },
             "login": {
                 "title": "Welcome to Akatsushi",
