@@ -244,12 +244,40 @@ const Admin: React.FC = () => {
       </div>
 
       <BlockModal open={modalOpen} onOpenChange={setModalOpen} target={target} onConfirm={confirmBlock} />
-      <RemoveModal open={removeModalOpen} onOpenChange={setRemoveModalOpen} target={removeTarget} onConfirm={async () => {
-        if (!removeTarget) return;
-        await updatePlayer(removeTarget.playerId, { [removeTarget.itemType === "arme" ? "idArme" : removeTarget.itemType === "armure" ? "idArmure" : "idAccesoires"]: null });
-        await loadData();
-        setRemoveModalOpen(false);
-      }} />
+      <RemoveModal 
+        open={removeModalOpen} 
+        onOpenChange={setRemoveModalOpen} 
+        target={removeTarget} 
+        onConfirm={async () => {
+          if (!removeTarget) return;
+
+          try {
+            // Préparation de l'objet de mise à jour
+            const updateData: any = {};
+            
+            if (removeTarget.itemType === "arme") {
+              updateData.idArme = null;
+              updateData.has_looted_arme = false; // Reset du statut de loot
+            } else if (removeTarget.itemType === "armure") {
+              updateData.idArmure = null;
+              updateData.has_looted_armure = false; // Reset du statut de loot
+            } else if (removeTarget.itemType === "accessoire") {
+              updateData.idAccesoires = null;
+              updateData.has_looted_accessoires = false; // Reset du statut de loot
+            }
+
+            // Envoi de la mise à jour à la base de données
+            await updatePlayer(removeTarget.playerId, updateData);
+            
+            toast.success(t("admin.action_success"));
+            await loadData();
+          } catch (error) {
+            toast.error(t("admin.action_error"));
+          } finally {
+            setRemoveModalOpen(false);
+          }
+        }} 
+      />
       <UnlockAllModal open={unlockModalOpen} onOpenChange={setUnlockModalOpen} target={null} onConfirm={async () => {
         await Promise.all(players.map(p => updatePlayer(p.id, { has_looted_arme: false, has_looted_armure: false, has_looted_accessoires: false, idArme: null, idArmure: null, idAccesoires: null })));
         await loadData();
