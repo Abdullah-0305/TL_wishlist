@@ -318,6 +318,7 @@ const Admin: React.FC = () => {
              id_armure: null,
              id_accessoire: null
            };
+           resetLastLootDate(p.id)
            return updatePlayer(p.id, { wishlist: newWishlist });
         }));
         await loadData();
