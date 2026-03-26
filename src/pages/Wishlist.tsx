@@ -4,24 +4,21 @@ import { Swords, Shield as ShieldIcon, Gem, Save, Info, Lock, CheckCircle2 } fro
 import { toast } from "sonner";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "../lib/supabase";
-import { getArmes, getArmures, getAccessoires, getRoles } from "@/api/db";
+import { getArmes, getArmures, getAccessoires, getRoles, updatePlayer, getPlayerById } from "@/api/db";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useTranslation, Trans } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 interface Item {
-  id: number;
-  name: { fr: string; en: string; };
+  id: string;
+  name: any;
 }
 
 const Wishlist = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { t, i18n } = useTranslation();
-  const currentLang = i18n.language as "fr" | "en";
-
-  if (!user) return <Navigate to="/login" replace />;
+  const currentLang = i18n.language?.split("-")[0] || "fr";
 
   const [loading, setLoading] = useState(true);
   const [weapons, setWeapons] = useState<Item[]>([]);
@@ -44,34 +41,53 @@ const Wishlist = () => {
 
   const [modalOpen, setModalOpen] = useState(false);
 
+  const getLocalizedName = (nameObj: any) => {
+    if (!nameObj) return "???";
+    if (typeof nameObj === "string") return nameObj;
+    return nameObj[currentLang] || nameObj.fr || "Nom inconnu";
+  };
+
   const loadData = async () => {
+    if (!user?.id) return;
+
     try {
       setLoading(true);
       const [w, a, ac, r] = await Promise.all([getArmes(), getArmures(), getAccessoires(), getRoles()]);
-      setWeapons((w.data as unknown as Item[]) || []);
-      setArmors((a.data as unknown as Item[]) || []);
-      setAccessories((ac.data as unknown as Item[]) || []);
-      setRoles((r.data as unknown as Item[]) || []);
+      
+      setWeapons(w.data || []);
+      setArmors(a.data || []);
+      setAccessories(ac.data || []);
+      setRoles(r.data || []);
 
-      const { data: player } = await supabase.from("player").select("*").eq("name", user.name).maybeSingle();
+      const { data: player, error } = await getPlayerById(user.id);
+      if (error) throw error;
       if (!player) return;
 
-      if (player.idRole) setRole(player.idRole.toString());
-      if (player.idArme) { setSelectedWeapon(player.idArme.toString()); setWeaponLocked(true); }
-      if (player.idArmure) { setSelectedArmor(player.idArmure.toString()); setArmorLocked(true); }
-      if (player.idAccesoires) { setSelectedAccessory(player.idAccesoires.toString()); setAccessoryLocked(true); }
+      if (player.role) setRole(player.role.toString());
+      
+      const wl = player.wishlist || {};
 
-      setHasLootedArme(player.has_looted_arme);
-      setHasLootedArmure(player.has_looted_armure);
-      setHasLootedAccessoire(player.has_looted_accessoires);
+      if (wl.id_arme) { setSelectedWeapon(wl.id_arme.toString()); setWeaponLocked(true); }
+      if (wl.id_armure) { setSelectedArmor(wl.id_armure.toString()); setArmorLocked(true); }
+      if (wl.id_accessoire) { setSelectedAccessory(wl.id_accessoire.toString()); setAccessoryLocked(true); }
+
+      setHasLootedArme(wl.has_looted_arme || false);
+      setHasLootedArmure(wl.has_looted_armure || false);
+      setHasLootedAccessoire(wl.has_looted_accessoires || false);
+
     } catch (err) {
+      console.error(err);
       toast.error(t("wishlist.load_error"));
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { 
+    if (!authLoading && user?.id) {
+      loadData(); 
+    }
+  }, [user?.id, authLoading]);
 
   const handleSave = () => {
     if (!role) { toast.error(t("wishlist.role_required")); return; }
@@ -79,17 +95,30 @@ const Wishlist = () => {
   };
 
   const confirmSave = async () => {
+    if (!user?.id) return;
     setModalOpen(false);
+
     try {
-      const { data: player } = await supabase.from("player").select("id").eq("name", user.name).maybeSingle();
-      if (!player) throw new Error("Joueur introuvable");
+      const { data: currentPlayer } = await getPlayerById(user.id);
+      const currentWishlist = currentPlayer?.wishlist || {};
+      const newWishlist = { ...currentWishlist };
 
-      const updateData: any = { idRole: parseInt(role) };
-      if (!weaponLocked) updateData.idArme = selectedWeapon && selectedWeapon !== "null" ? parseInt(selectedWeapon) : null;
-      if (!armorLocked) updateData.idArmure = selectedArmor && selectedArmor !== "null" ? parseInt(selectedArmor) : null;
-      if (!accessoryLocked) updateData.idAccesoires = selectedAccessory && selectedAccessory !== "null" ? parseInt(selectedAccessory) : null;
+      if (!weaponLocked && selectedWeapon && selectedWeapon !== "null") {
+          newWishlist.id_arme = isNaN(Number(selectedWeapon)) ? selectedWeapon : Number(selectedWeapon);
+      }
+      if (!armorLocked && selectedArmor && selectedArmor !== "null") {
+          newWishlist.id_armure = isNaN(Number(selectedArmor)) ? selectedArmor : Number(selectedArmor);
+      }
+      if (!accessoryLocked && selectedAccessory && selectedAccessory !== "null") {
+          newWishlist.id_accessoire = isNaN(Number(selectedAccessory)) ? selectedAccessory : Number(selectedAccessory);
+      }
 
-      const { error } = await supabase.from("player").update(updateData).eq("id", player.id);
+      const updateData = { 
+        role: role,
+        wishlist: newWishlist 
+      };
+
+      const { error } = await updatePlayer(user.id, updateData);
       if (error) throw error;
 
       toast.success(t("wishlist.save_success"));
@@ -98,6 +127,14 @@ const Wishlist = () => {
       toast.error(t("wishlist.save_error"));
     }
   };
+
+  if (authLoading) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-12 h-12 border-4 border-fuchsia-500/20 border-t-fuchsia-500 rounded-full animate-spin" />
+    </div>
+  );
+
+  if (!user) return <Navigate to="/login" replace />;
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-[60vh]">
@@ -188,7 +225,7 @@ const Wishlist = () => {
               <SelectContent className="bg-[#1e1333] border-fuchsia-500/30 text-white">
                 {roles.map(r => (
                   <SelectItem key={r.id} value={r.id.toString()} className="focus:bg-fuchsia-500/20 cursor-pointer">
-                    {r.name[currentLang] || r.name['fr']}
+                    {getLocalizedName(r.name)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -227,7 +264,7 @@ const Wishlist = () => {
                 <SelectItem value="null" className="italic text-zinc-500 cursor-pointer">{t("wishlist.none")}</SelectItem>
                 {slot.items.map(i => (
                   <SelectItem key={i.id} value={i.id.toString()} className="cursor-pointer">
-                    {i.name[currentLang] || i.name['fr']}
+                    {getLocalizedName(i.name)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -249,6 +286,7 @@ const Wishlist = () => {
       <div className="flex flex-col items-center gap-4">
         <Button 
           onClick={handleSave}
+          disabled={weaponLocked && armorLocked && accessoryLocked}
           className="group relative bg-gradient-to-r from-fuchsia-600 to-purple-700 hover:from-fuchsia-500 hover:to-purple-600 text-white font-black px-12 py-7 h-auto rounded-2xl shadow-2xl shadow-fuchsia-900/40 border-b-4 border-fuchsia-900/60 transition-all active:translate-y-1 active:border-b-0 uppercase tracking-widest text-sm"
         >
           <Save className="mr-3 h-5 w-5 group-hover:rotate-12 transition-transform" />

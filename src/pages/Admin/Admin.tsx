@@ -14,7 +14,6 @@ import RemoveModal, { RemoveTarget } from "./components/RemoveModal";
 import UnlockAllModal from "./components/UnlockAllModal";
 import AddPlayerModal from "./components/AddPlayerModal";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 import {
   getPlayers,
@@ -31,7 +30,7 @@ import {
   getArmeBossById,
   getArmureBossById,
   getAccessoireBossById,
-  createPlayer,
+  getPlayerById,
   resetLastLootDate
 } from "@/api/db";
 
@@ -62,8 +61,9 @@ interface Player {
 const Admin: React.FC = () => {
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
-  const lang = i18n.language as "fr" | "en";
+  const lang = i18n.language?.split("-")[0] as "fr" | "en" || "fr";
 
+  // Protection
   if (!user) return <Navigate to="/login" replace />;
 
   const [players, setPlayers] = useState<Player[]>([]);
@@ -86,29 +86,52 @@ const Admin: React.FC = () => {
         getArmes(), getArmures(), getAccessoires(), getPlayers()
       ]);
       setItems({ armes: a.data || [], armures: ar.data || [], accessoires: ac.data || [] });
+      
       if (pRes.data) {
         const enriched = await Promise.all(pRes.data.map(async (p: any) => {
-          if (p.date_last_looted_item && (new Date().getTime() - new Date(p.date_last_looted_item).getTime()) / 86400000 > 7) {
+          // 🛠️ On extrait la wishlist de la BDD
+          const wl = p.wishlist || {};
+
+          if (wl.date_last_looted_item && (new Date().getTime() - new Date(wl.date_last_looted_item).getTime()) / 86400000 > 7) {
             await resetLastLootDate(p.id);
-            p.date_last_looted_item = null;
+            wl.date_last_looted_item = null;
           }
+
+          // 🛠️ On renvoie un objet "plat" pour que PlayerGrid n'ait rien à changer
           return {
             ...p,
+            name: p.discord_name, // On utilise le discord_name pour l'affichage
             isPresent: false,
-            armeName: p.idArme ? await getArmeNameById(p.idArme) : null,
-            armureName: p.idArmure ? await getArmureNameById(p.idArmure) : null,
-            accessoireName: p.idAccesoires ? await getAccessoireNameById(p.idAccesoires) : null,
-            armeBoss: p.idArme ? await getArmeBossById(p.idArme) : [],
-            armureBoss: p.idArmure ? await getArmureBossById(p.idArmure) : [],
-            accessoireBoss: p.idAccesoires ? await getAccessoireBossById(p.idAccesoires) : [],
-            roleName: p.idRole ? await getRoleById(p.idRole) : null,
-            roleColor: p.idRole ? await getColorRoleById(p.idRole) : "#9CA3AF"
+            
+            // On mappe le JSON wishlist vers les variables attendues par l'interface
+            idArme: wl.id_arme,
+            idArmure: wl.id_armure,
+            idAccesoires: wl.id_accessoire,
+            has_looted_arme: wl.has_looted_arme || false,
+            has_looted_armure: wl.has_looted_armure || false,
+            has_looted_accessoires: wl.has_looted_accessoires || false,
+            date_last_looted_item: wl.date_last_looted_item ? new Date(wl.date_last_looted_item) : null,
+
+            armeName: wl.id_arme ? await getArmeNameById(wl.id_arme) : null,
+            armureName: wl.id_armure ? await getArmureNameById(wl.id_armure) : null,
+            accessoireName: wl.id_accessoire ? await getAccessoireNameById(wl.id_accessoire) : null,
+            armeBoss: wl.id_arme ? await getArmeBossById(wl.id_arme) : [],
+            armureBoss: wl.id_armure ? await getArmureBossById(wl.id_armure) : [],
+            accessoireBoss: wl.id_accessoire ? await getAccessoireBossById(wl.id_accessoire) : [],
+            
+            idRole: p.role,
+            roleName: p.role ? await getRoleById(p.role) : null,
+            roleColor: p.role ? await getColorRoleById(p.role) : "#9CA3AF"
           };
         }));
+        
         setPlayers(enriched);
         setFilteredPlayers(enriched);
       }
-    } catch (err) { toast.error(t("admin.load_error")); }
+    } catch (err) { 
+      console.error(err);
+      toast.error(t("admin.load_error")); 
+    }
   };
 
   useEffect(() => { loadData(); }, []);
@@ -151,6 +174,7 @@ const Admin: React.FC = () => {
   const confirmBlock = async () => {
     if (!target) return;
     try {
+      // Celle-ci on l'avait déjà modifiée côté api/db.ts pour qu'elle gère le JSON !
       await setPlayerHasLooted(target.playerId, target.mode === "block", target.itemType);
       toast.success(t("admin.action_success"));
       await loadData();
@@ -172,52 +196,50 @@ const Admin: React.FC = () => {
         />
 
         {/* --- ZONE DE CONTRÔLE --- */}
-<div className="space-y-4">
-  <FilterBar 
-    selectedFilter={selectedFilter} 
-    setSelectedFilter={setSelectedFilter} 
-    {...items} 
-  />
+        <div className="space-y-4">
+          <FilterBar 
+            selectedFilter={selectedFilter} 
+            setSelectedFilter={setSelectedFilter} 
+            {...items} 
+          />
 
-  <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-start gap-4">
-    
-    {/* Groupe Présence - Grid avec padding de sécurité (px-4) */}
-    <div className="grid grid-cols-2 lg:flex items-center gap-2 bg-[#1e1333]/60 p-1.5 rounded-xl border border-white/5 shadow-inner w-full lg:w-fit">
-      <Button 
-        variant="ghost" 
-        onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: false})))}
-        className="flex items-center justify-center gap-2 text-fuchsia-300/70 hover:text-white text-[9px] xs:text-[10px] font-black uppercase tracking-widest h-12 lg:h-10 px-4 sm:px-6 hover:bg-fuchsia-600/20 transition-all active:scale-95 text-center min-w-0"
-      >
-        <RotateCcw className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" /> 
-        <span className="leading-tight break-words py-1 overflow-hidden">
-          {t("admin.reset_presence")}
-        </span>
-      </Button>
-      
-      {/* Séparateur vertical (uniquement PC) */}
-      <div className="hidden lg:block w-[1px] h-6 bg-white/10 mx-1 flex-shrink-0" />
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-start gap-4">
+            
+            <div className="grid grid-cols-2 lg:flex items-center gap-2 bg-[#1e1333]/60 p-1.5 rounded-xl border border-white/5 shadow-inner w-full lg:w-fit">
+              <Button 
+                variant="ghost" 
+                onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: false})))}
+                className="flex items-center justify-center gap-2 text-fuchsia-300/70 hover:text-white text-[9px] xs:text-[10px] font-black uppercase tracking-widest h-12 lg:h-10 px-4 sm:px-6 hover:bg-fuchsia-600/20 transition-all active:scale-95 text-center min-w-0"
+              >
+                <RotateCcw className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" /> 
+                <span className="leading-tight break-words py-1 overflow-hidden">
+                  {t("admin.reset_presence")}
+                </span>
+              </Button>
+              
+              <div className="hidden lg:block w-[1px] h-6 bg-white/10 mx-1 flex-shrink-0" />
 
-      <Button 
-        variant="ghost" 
-        onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: true})))}
-        className="flex items-center justify-center gap-2 text-fuchsia-300/70 hover:text-white text-[9px] xs:text-[10px] font-black uppercase tracking-widest h-12 lg:h-10 px-4 sm:px-6 hover:bg-fuchsia-600/20 transition-all active:scale-95 text-center min-w-0"
-      >
-        <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" /> 
-        <span className="leading-tight break-words py-1 overflow-hidden">
-          {t("admin.set_all_presence")}
-        </span>
-      </Button>
-    </div>
+              <Button 
+                variant="ghost" 
+                onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: true})))}
+                className="flex items-center justify-center gap-2 text-fuchsia-300/70 hover:text-white text-[9px] xs:text-[10px] font-black uppercase tracking-widest h-12 lg:h-10 px-4 sm:px-6 hover:bg-fuchsia-600/20 transition-all active:scale-95 text-center min-w-0"
+              >
+                <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" /> 
+                <span className="leading-tight break-words py-1 overflow-hidden">
+                  {t("admin.set_all_presence")}
+                </span>
+              </Button>
+            </div>
 
-    {/* Bouton Ajouter */}
-    <Button 
-      onClick={() => setAddPlayerModalOpen(true)}
-      className="bg-gradient-to-br from-gaming-gold to-amber-600 text-black font-black uppercase tracking-widest text-[10px] h-12 lg:h-10 px-8 rounded-xl shadow-lg hover:brightness-110 transition-all active:scale-95 border-b-2 border-amber-800 w-full lg:w-fit flex-shrink-0"
-    >
-      <UserPlus className="mr-2 h-4 w-4" /> {t("admin.add_player")}
-    </Button>
-  </div>
-</div>
+            {/* Bouton Ajouter */}
+            <Button 
+              onClick={() => setAddPlayerModalOpen(true)}
+              className="bg-gradient-to-br from-gaming-gold to-amber-600 text-black font-black uppercase tracking-widest text-[10px] h-12 lg:h-10 px-8 rounded-xl shadow-lg hover:brightness-110 transition-all active:scale-95 border-b-2 border-amber-800 w-full lg:w-fit flex-shrink-0"
+            >
+              <UserPlus className="mr-2 h-4 w-4" /> {t("admin.add_player")}
+            </Button>
+          </div>
+        </div>
 
         {/* --- GRILLE DES JOUEURS --- */}
         <div className="pt-4 relative">
@@ -244,6 +266,8 @@ const Admin: React.FC = () => {
       </div>
 
       <BlockModal open={modalOpen} onOpenChange={setModalOpen} target={target} onConfirm={confirmBlock} />
+      
+      {/* 🛠️ CORRECTION : Le modal de suppression met à jour le JSON */}
       <RemoveModal 
         open={removeModalOpen} 
         onOpenChange={setRemoveModalOpen} 
@@ -252,22 +276,23 @@ const Admin: React.FC = () => {
           if (!removeTarget) return;
 
           try {
-            // Préparation de l'objet de mise à jour
-            const updateData: any = {};
+            const { data: currentPlayer } = await getPlayerById(removeTarget.playerId);
+            const currentWishlist = currentPlayer?.wishlist || {};
+            const newWishlist = { ...currentWishlist };
             
             if (removeTarget.itemType === "arme") {
-              updateData.idArme = null;
-              updateData.has_looted_arme = false; // Reset du statut de loot
+              newWishlist.id_arme = null;
+              newWishlist.has_looted_arme = false;
             } else if (removeTarget.itemType === "armure") {
-              updateData.idArmure = null;
-              updateData.has_looted_armure = false; // Reset du statut de loot
+              newWishlist.id_armure = null;
+              newWishlist.has_looted_armure = false;
             } else if (removeTarget.itemType === "accessoire") {
-              updateData.idAccesoires = null;
-              updateData.has_looted_accessoires = false; // Reset du statut de loot
+              newWishlist.id_accessoire = null;
+              newWishlist.has_looted_accessoires = false;
             }
 
-            // Envoi de la mise à jour à la base de données
-            await updatePlayer(removeTarget.playerId, updateData);
+            // On update avec le nouveau JSON !
+            await updatePlayer(removeTarget.playerId, { wishlist: newWishlist });
             
             toast.success(t("admin.action_success"));
             await loadData();
@@ -278,12 +303,27 @@ const Admin: React.FC = () => {
           }
         }} 
       />
+
+      {/* 🛠️ CORRECTION : Le modal de reset global met à jour tous les JSON */}
       <UnlockAllModal open={unlockModalOpen} onOpenChange={setUnlockModalOpen} target={null} onConfirm={async () => {
-        await Promise.all(players.map(p => updatePlayer(p.id, { has_looted_arme: false, has_looted_armure: false, has_looted_accessoires: false, idArme: null, idArmure: null, idAccesoires: null })));
+        await Promise.all(players.map(async p => {
+           const { data: currentPlayer } = await getPlayerById(p.id);
+           const currentWishlist = currentPlayer?.wishlist || {};
+           const newWishlist = {
+             ...currentWishlist,
+             has_looted_arme: false,
+             has_looted_armure: false,
+             has_looted_accessoires: false,
+             id_arme: null,
+             id_armure: null,
+             id_accessoire: null
+           };
+           return updatePlayer(p.id, { wishlist: newWishlist });
+        }));
         await loadData();
         setUnlockModalOpen(false);
       }} />
-      <AddPlayerModal open={addPlayerModalOpen} onOpenChange={setAddPlayerModalOpen} onPlayerAdded={async (n, p) => { await createPlayer(n, p); await loadData(); }} loadPlayers={loadData} />
+
     </div>
   );
 };

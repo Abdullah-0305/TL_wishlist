@@ -9,7 +9,6 @@ import Wishlist from "./pages/Wishlist";
 import Admin from "./pages/Admin/Admin";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
-import ChangePassword from "./pages/ChangePassword";
 import LanguageSwitcher from "./components/LanguageSwitcher";
 import Maintenance from "./pages/Maintenance";
 
@@ -17,9 +16,9 @@ import Maintenance from "./pages/Maintenance";
 const queryClient = new QueryClient();
 
 const AppContent = () => {
-  const { user } = useAuth();
+  // 1. 🛠️ AJOUT DE 'loading' ICI
+  const { user, loading } = useAuth();
   
-  // 1. On check la maintenance ici
   const isMaintenance = import.meta.env.VITE_MAINTENANCE_MODE === "true";
 
   if (isMaintenance) {
@@ -31,7 +30,16 @@ const AppContent = () => {
     );
   }
 
-  // 2. Si pas de maintenance, on affiche les routes normales
+  // 2. 🛠️ LA BARRIÈRE MAGIQUE : On bloque tout affichage le temps que Supabase lise l'URL Discord
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0b10] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-fuchsia-500/20 border-t-fuchsia-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // 3. Si pas de maintenance et chargement fini, on affiche les routes
   return (
     <Layout>
       <Routes>
@@ -42,7 +50,6 @@ const AppContent = () => {
         <Route path="/login" element={user ? <Navigate to="/wishlist" replace /> : <Login />} />
         <Route path="/wishlist" element={user ? <Wishlist /> : <Navigate to="/login" replace />} />
         <Route path="/admin" element={user ? <Admin /> : <Navigate to="/login" replace />} />
-        <Route path="/change-password" element={user ? <ChangePassword/> : <Navigate to="/login" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <LanguageSwitcher />

@@ -6,7 +6,8 @@ import { useTranslation } from "react-i18next";
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
-  const { user, logout } = useAuth();
+  // 🛠️ CORRECTION : On utilise signOut à la place de logout
+  const { user, signOut } = useAuth(); 
   const { t } = useTranslation();
 
   const showNavItems = location.pathname !== "/change-password";
@@ -68,7 +69,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 {/* Bouton Quitter - Plus petit sur mobile */}
                 {user && (
                   <button
-                    onClick={logout}
+                    onClick={signOut} // 🛠️ CORRECTION : On appelle signOut
                     className="p-1.5 sm:p-2.5 rounded-xl text-zinc-600 hover:text-red-500 transition-all active:scale-90"
                     title={t('nav.logout')}
                   >
