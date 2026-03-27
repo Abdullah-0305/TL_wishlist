@@ -26,7 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const isprocessing = useRef(false);
 
-  const fetchExtendedUser = async (currentSession: Session | null) => {
+const fetchExtendedUser = async (currentSession: Session | null) => {
     if (isprocessing.current || !currentSession?.user) return;
 
     try {
@@ -34,9 +34,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const authUser = currentSession.user;
       const checkKey = `discord_verified_${authUser.id}`;
       const isSigningUp = sessionStorage.getItem("is_signing_up") === "true";
+      
+      // 1. On prépare une variable pour le nom (fallback sur le nom metadata)
+      let effectiveName = authUser.user_metadata?.full_name || authUser.user_metadata?.name;
 
       // 1. VÉRIFICATION DISCORD
-      // On vérifie si on a le token ET (si pas de cache OU si on est en train de se loguer proprement)
       if (currentSession.provider_token) {
         if (!sessionStorage.getItem(checkKey) || isSigningUp) {
           const discordRes = await fetch(
@@ -46,13 +48,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (discordRes.ok) {
             const memberData = await discordRes.json();
+            
+            // On récupère le pseudo du serveur (nick) s'il existe
+            if (memberData.nick) {
+              effectiveName = memberData.nick;
+            }
+
             if (!memberData.roles.includes(REQUIRED_ROLE_ID)) {
               await signOut();
               return;
             }
             sessionStorage.setItem(checkKey, "true");
           } else if (discordRes.status === 429) {
-            return; // On ne fait rien si Rate Limit, on réessaiera
+            isprocessing.current = false; // Important de libérer avant de sortir
+            return; 
           } else {
             await signOut();
             return;
@@ -63,14 +72,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // 2. RÉCUPÉRATION / CRÉATION EN DB
       let { data: playerInfo } = await getPlayerById(authUser.id);
 
-      // Si pas en base et qu'on vient de cliquer sur Login -> On crée
       if (!playerInfo && isSigningUp && currentSession.provider_token) {
-        const discordName = authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || "Soldat";
+        // ICI : effectiveName est maintenant accessible !
         const { data: newPlayer } = await supabase
           .from("players")
           .insert([{ 
             id: authUser.id, 
-            discord_name: discordName, 
+            discord_name: effectiveName, 
             avatar_url: authUser.user_metadata?.avatar_url, 
             is_admin: false 
           }])
@@ -78,18 +86,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         playerInfo = newPlayer;
       }
 
-      // 3. On met à jour si nécessaire l'image du joueur
-      if (playerInfo && authUser.user_metadata?.avatar_url !== playerInfo.avatar_url) {
-        await supabase
-          .from("players")
-          .update({ avatar_url: authUser.user_metadata.avatar_url })
-          .eq("id", authUser.id);
+      // 3. SYNCHRONISATION (Nom et Avatar)
+      // On met à jour si le nom ou l'avatar a changé sur Discord
+      if (playerInfo) {
+        const hasNameChanged = effectiveName && playerInfo.discord_name !== effectiveName;
+        const hasAvatarChanged = authUser.user_metadata?.avatar_url !== playerInfo.avatar_url;
+
+        if (hasNameChanged || hasAvatarChanged) {
+          await supabase
+            .from("players")
+            .update({ 
+              discord_name: effectiveName,
+              avatar_url: authUser.user_metadata?.avatar_url 
+            })
+            .eq("id", authUser.id);
+        }
       }
 
       // 4. Login sur le site
       if (playerInfo) {
         setUser({ ...authUser, is_admin: playerInfo.is_admin });
-        // On nettoie le "is_signing_up" qu'une fois que tout est OK
         sessionStorage.removeItem("is_signing_up"); 
       } else {
         await signOut();
