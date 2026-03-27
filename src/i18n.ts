@@ -54,7 +54,7 @@ i18n
                 "save_error": "Erreur lors de la sauvegarde"
             },
             "login": {
-                "title": "Bienvenue sur Akatsushi",
+                "title": "Bienvenue sur TRINITY",
                 "description": "Connectez-vous pour gérer votre wishlist",
                 "label_pseudo": "Pseudo",
                 "placeholder_pseudo": "Votre pseudo",
@@ -237,7 +237,7 @@ i18n
                 "save_error": "Error during save"
             },
             "login": {
-                "title": "Welcome to Akatsushi",
+                "title": "Welcome to TRINITY",
                 "description": "Log in to manage your wishlist",
                 "label_pseudo": "Username",
                 "placeholder_pseudo": "Your username",

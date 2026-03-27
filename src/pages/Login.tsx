@@ -40,7 +40,7 @@ const Login = () => {
               <div className="w-12 h-12 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-fuchsia-400 mb-4 shadow-glow-fuchsia">
                 <LockKeyhole className="h-6 w-6" />
               </div>
-              <h1 className="text-xl font-black uppercase tracking-[0.2em] text-white">
+              <h1 className="text-xl font-black uppercase tracking-[0.2em] text-white text-center">
                 {t("login.title")}
               </h1>
               <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1 text-center">
@@ -54,9 +54,6 @@ const Login = () => {
                   <span className="w-full border-t border-white/10" />
                 </div>
                 <div className="relative flex justify-center text-[9px] uppercase tracking-widest font-black">
-                  <span className="bg-[#1a1129] px-3 text-zinc-500">
-                    Accès Sécurisé
-                  </span>
                 </div>
               </div>
 

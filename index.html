@@ -1,18 +1,78 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="fr" class="dark"> <!-- "dark" pour préparer le thème sombre -->
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Akatsushi - Wishlist Guilde</title>
-    <meta name="description" content="Gérez votre wishlist de loot pour la guilde Akatsushi" />
-    <meta name="author" content="Akatsushi" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta name="theme-color" content="#1e1333" /> <!-- Couleur mobile (Néon Royal) -->
 
-    <meta property="og:description" content="Wishlist Akatsushi" />
+    <!-- --- SEO & METADATAS --- -->
+    <title>Trinity — Système de Wishlist & Loot Management</title>
+    <meta name="description" content="Plateforme officielle de la guilde Trinity pour la gestion des wishlists de loot. Optimisez votre progression et coordonnez vos besoins avec vos officiers." />
+    <meta name="keywords" content="Trinity, Guilde, Loot, Wishlist, MMO, RPG, Gestion de guilde" />
+    <meta name="author" content="Trinity" />
+
+    <!-- --- OPEN GRAPH (Réseaux Sociaux / Discord) --- -->
+    <meta property="og:title" content="Trinity — Wishlist Guilde" />
+    <meta property="og:description" content="Gérez votre progression et vos besoins de loot au sein de Trinity. Interface optimisée pour la co-gestion." />
+    <meta property="og:image" content="/og-image.jpg" /> <!-- Image 1200x630 pour Discord -->
+    <meta property="og:url" content="https://tl-wishlist.vercel.app" />
     <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- --- POLICES PRÉ-CHARGÉES (Performance) --- -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet" />
+
+    <!-- --- SÉCURITÉ & CACHE --- -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    
+    <style>
+      /* Splash screen minimaliste pendant le chargement de React */
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #0a0b10;
+        font-family: 'Inter', sans-serif;
+      }
+      #initial-loader {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        width: 100vw;
+        background: radial-gradient(circle at top, #1e1333 0%, #0a0b10 100%);
+      }
+      .loader-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(217, 70, 239, 0.1);
+        border-top: 3px solid #d946ef;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
   </head>
 
   <body>
-    <div id="root"></div>
+    <!-- Le root de l'application -->
+    <div id="root">
+      <!-- Ce contenu sera écrasé par React, mais s'affiche en cas de chargement lent -->
+      <div id="initial-loader">
+        <div class="loader-spinner"></div>
+      </div>
+    </div>
+
+    <!-- Script principal -->
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Noscript pour les navigateurs sans JS -->
+    <noscript>
+      <div style="text-align: center; padding: 50px; color: white;">
+        Désolé, cette application nécessite JavaScript pour fonctionner correctement.
+      </div>
+    </noscript>
   </body>
 </html>
