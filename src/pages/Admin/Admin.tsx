@@ -12,7 +12,6 @@ import PlayerGrid from "./components/PlayerGrid";
 import BlockModal, { BlockTarget } from "./components/BlockModal";
 import RemoveModal, { RemoveTarget } from "./components/RemoveModal";
 import UnlockAllModal from "./components/UnlockAllModal";
-import AddPlayerModal from "./components/AddPlayerModal";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -78,7 +77,6 @@ const Admin: React.FC = () => {
   const [removeModalOpen, setRemoveModalOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null);
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
-  const [addPlayerModalOpen, setAddPlayerModalOpen] = useState(false);
 
   const loadData = async () => {
     try {
@@ -111,6 +109,10 @@ const Admin: React.FC = () => {
             has_looted_armure: wl.has_looted_armure || false,
             has_looted_accessoires: wl.has_looted_accessoires || false,
             date_last_looted_item: wl.date_last_looted_item ? new Date(wl.date_last_looted_item) : null,
+            date_demand_arme: wl.date_demand_arme ? new Date(wl.date_demand_arme) : null,
+            date_demand_armure: wl.date_demand_armure ? new Date(wl.date_demand_armure) : null,
+            date_demand_accessoire: wl.date_demand_accessoire ? new Date(wl.date_demand_accessoire) : null,
+
 
             armeName: wl.id_arme ? await getArmeNameById(wl.id_arme) : null,
             armureName: wl.id_armure ? await getArmureNameById(wl.id_armure) : null,
@@ -230,14 +232,6 @@ const Admin: React.FC = () => {
                 </span>
               </Button>
             </div>
-
-            {/* Bouton Ajouter */}
-            <Button 
-              onClick={() => setAddPlayerModalOpen(true)}
-              className="bg-gradient-to-br from-gaming-gold to-amber-600 text-black font-black uppercase tracking-widest text-[10px] h-12 lg:h-10 px-8 rounded-xl shadow-lg hover:brightness-110 transition-all active:scale-95 border-b-2 border-amber-800 w-full lg:w-fit flex-shrink-0"
-            >
-              <UserPlus className="mr-2 h-4 w-4" /> {t("admin.add_player")}
-            </Button>
           </div>
         </div>
 
@@ -316,9 +310,12 @@ const Admin: React.FC = () => {
              has_looted_accessoires: false,
              id_arme: null,
              id_armure: null,
-             id_accessoire: null
+             id_accessoire: null,
+             date_demand_arme: null,
+             date_demand_armure: null,
+             date_demand_accessoire: null,
+             date_last_looted_item: null
            };
-           resetLastLootDate(p.id)
            return updatePlayer(p.id, { wishlist: newWishlist });
         }));
         await loadData();

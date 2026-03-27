@@ -4,7 +4,7 @@ import { Session, User } from "@supabase/supabase-js";
 import { getPlayerById } from "@/api/db";
 
 interface ExtendedUser extends User {
-  isAdmin?: boolean;
+  is_admin?: boolean;
 }
 
 interface AuthContextType {
@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: authUser.id, 
             discord_name: discordName, 
             avatar_url: authUser.user_metadata?.avatar_url, 
-            isAdmin: false 
+            is_admin: false 
           }])
           .select().maybeSingle();
         playerInfo = newPlayer;
@@ -80,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // 3. VERDICT FINAL
       if (playerInfo) {
-        setUser({ ...authUser, isAdmin: playerInfo.isAdmin });
+        setUser({ ...authUser, is_admin: playerInfo.is_admin });
         // On ne nettoie le "is_signing_up" qu'une fois que tout est OK
         sessionStorage.removeItem("is_signing_up"); 
       } else {

@@ -15,7 +15,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const navItems = [
     !user && { path: "/login", label: t('nav.login'), icon: Shield },
     user && { path: "/wishlist", label: t('nav.wishlist'), icon: Swords },
-    user?.isAdmin && { path: "/admin", label: t('nav.admin'), icon: UserCog },
+    user?.is_admin && { path: "/admin", label: t('nav.admin'), icon: UserCog },
   ].filter(Boolean) as any[];
 
   return (

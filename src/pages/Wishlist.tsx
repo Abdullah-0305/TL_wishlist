@@ -105,12 +105,15 @@ const Wishlist = () => {
 
       if (!weaponLocked && selectedWeapon && selectedWeapon !== "null") {
           newWishlist.id_arme = isNaN(Number(selectedWeapon)) ? selectedWeapon : Number(selectedWeapon);
+          newWishlist.date_demand_arme = isNaN(Number(selectedWeapon)) ? null : new Date();
       }
       if (!armorLocked && selectedArmor && selectedArmor !== "null") {
           newWishlist.id_armure = isNaN(Number(selectedArmor)) ? selectedArmor : Number(selectedArmor);
+          newWishlist.date_demand_armure = isNaN(Number(selectedArmor)) ? null : new Date();
       }
       if (!accessoryLocked && selectedAccessory && selectedAccessory !== "null") {
           newWishlist.id_accessoire = isNaN(Number(selectedAccessory)) ? selectedAccessory : Number(selectedAccessory);
+          newWishlist.date_demand_accessoire = isNaN(Number(selectedAccessory)) ? null : new Date();
       }
 
       const updateData = { 

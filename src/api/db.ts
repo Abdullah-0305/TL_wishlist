@@ -12,10 +12,13 @@ export interface Player {
     has_looted_arme?: boolean;
     has_looted_armure?: boolean;
     has_looted_accessoires?: boolean;
+    date_demand_arme?: Date | null;
+    date_demand_armure?: Date | null;
+    date_demand_accessoires?: Date | null;
     date_last_looted_item?: string | null;
   } | null;
   is_online: boolean;
-  isAdmin: boolean;
+  is_admin: boolean;
 }
 
 export async function getArmes() { return await supabase.from("armes").select("*").order("name"); }
