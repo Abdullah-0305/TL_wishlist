@@ -35,17 +35,14 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
   return (
     <>
       <Card className={cn(
-        // Fond Violet Vibrant avec bordure Rose/Fuchsia
         "relative p-3 sm:p-4 transition-all duration-300 border border-fuchsia-500/30 bg-[#1e1333] shadow-[0_8px_32px_rgba(217,70,239,0.1)] group/card",
         player.isPresent 
           ? "ring-2 ring-gaming-gold border-gaming-gold bg-[#2a1a45] shadow-[0_0_25px_rgba(217,70,239,0.25)]" 
           : "hover:border-fuchsia-500/60"
       )}>
         
-        {/* Lueur Rose/Violette sur le dessus */}
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-fuchsia-600 via-purple-500 to-gaming-gold rounded-t-xl" />
 
-        {/* ----- Badge de Rôle (JSONB) ----- */}
         {player.roleName && (
           <div
             className="absolute -top-3 -left-1 px-3 py-1 rounded-md text-[10px] sm:text-xs font-black text-white z-20 shadow-lg uppercase tracking-wider border border-white/20"
@@ -59,7 +56,6 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
           </div>
         )}
 
-        {/* Bouton Gérer */}
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           className="absolute right-2 top-3 p-2 rounded-full hover:bg-fuchsia-500/20 text-fuchsia-300 hover:text-gaming-gold transition-all z-20"
@@ -67,7 +63,6 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
           <MoreVertical className="h-5 w-5" />
         </button>
 
-        {/* Menu Contextuel */}
         {menuOpen && (
           <div
             ref={menuRef}
@@ -90,16 +85,28 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
             
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-3">
-                {/* Icône sur fond dégradé Rose/Violet */}
-                <div className="p-2.5 rounded-xl bg-gradient-to-br from-fuchsia-600 to-purple-800 border border-white/10 flex-shrink-0 shadow-lg">
-                  <UserCog className="h-5 w-5 text-white" />
+                {/* --- AVATAR DU JOUEUR --- */}
+                <div className="relative flex-shrink-0 group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-fuchsia-500 to-purple-600 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-300"></div>
+                  <div className="relative h-12 w-12 rounded-xl border border-white/10 overflow-hidden bg-zinc-900 flex items-center justify-center shadow-2xl">
+                    {player.avatar_url ? (
+                      <img 
+                        src={player.avatar_url} 
+                        alt={player.name} 
+                        className="h-full w-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).src = ""; }} // Fallback si URL morte
+                      />
+                    ) : (
+                      <UserCog className="h-6 w-6 text-fuchsia-400" />
+                    )}
+                  </div>
                 </div>
+
                 <CardTitle className="text-xl font-extrabold text-white tracking-tight drop-shadow-md">
                   {player.name}
                 </CardTitle>
               </div>
 
-              {/* Toggle Présence Gold/Rose */}
               <label className="flex items-center gap-2 cursor-pointer group/pres">
                 <span className={cn(
                   "text-[10px] uppercase font-black tracking-widest transition-colors",
@@ -116,7 +123,6 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
               </label>
             </div>
 
-            {/* Séparateur Néon Rose vers Or */}
             <div className="h-[2px] w-full bg-gradient-to-r from-fuchsia-500 via-purple-500 to-gaming-gold opacity-50" />
             
             <CardDescription className="text-[11px] uppercase tracking-[0.2em] font-black text-fuchsia-300">
@@ -126,11 +132,29 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
         </CardHeader>
 
         <CardContent className="space-y-4 relative">
-          <ItemRow type="arme" player={player} openModal={openModal} openRemoveModal={openRemoveModal} />
-          <ItemRow type="armure" player={player} openModal={openModal} openRemoveModal={openRemoveModal} />
-          <ItemRow type="accessoire" player={player} openModal={openModal} openRemoveModal={openRemoveModal} />
+          {/* On passe les dates de demande spécifiques à chaque ligne d'objet */}
+          <ItemRow 
+            type="arme" 
+            player={player} 
+            dateDemand={player.date_demand_arme} 
+            openModal={openModal} 
+            openRemoveModal={openRemoveModal} 
+          />
+          <ItemRow 
+            type="armure" 
+            player={player} 
+            dateDemand={player.date_demand_armure} 
+            openModal={openModal} 
+            openRemoveModal={openRemoveModal} 
+          />
+          <ItemRow 
+            type="accessoire" 
+            player={player} 
+            dateDemand={player.date_demand_accessoire} 
+            openModal={openModal} 
+            openRemoveModal={openRemoveModal} 
+          />
 
-          {/* Date Style Cyber */}
           {formattedDate && (
             <div className="mt-4 pt-3 border-t border-fuchsia-500/20 flex items-center justify-between text-[10px] text-fuchsia-200/60 font-bold uppercase tracking-widest">
               <div className="flex items-center gap-1.5">

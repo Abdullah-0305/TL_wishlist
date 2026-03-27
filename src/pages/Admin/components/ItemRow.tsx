@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { Swords, Shield, Gem, Lock, Unlock } from "lucide-react";
+import { Swords, Shield, Gem, Lock, Unlock, Calendar } from "lucide-react";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { useTranslation } from "react-i18next";
 
-const ItemRow = ({ type, player, openModal, openRemoveModal }) => {
+const ItemRow = ({ type, player, dateDemand, openModal, openRemoveModal }) => {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as "fr" | "en";
 
@@ -38,7 +38,12 @@ const ItemRow = ({ type, player, openModal, openRemoveModal }) => {
     ? bosses.map((b: any) => b[lang] || b['fr']).join(", ") 
     : t("item_row.no_boss");
 
+  console.log(player)
   const hasItem = !!itemData;
+
+  const formattedDemand = dateDemand 
+    ? new Date(dateDemand).toLocaleDateString() // Ou un format plus court style "12/03"
+    : null;
 
   return (
     <div className="flex items-center justify-between group">
@@ -49,9 +54,25 @@ const ItemRow = ({ type, player, openModal, openRemoveModal }) => {
           <Tooltip.Provider delayDuration={200}>
             <Tooltip.Root>
               <Tooltip.Trigger asChild>
-                <span className="text-sm cursor-help truncate hover:text-primary transition-colors">
-                  {displayName}
-                </span>
+                <div className="flex flex-col gap-0.5 cursor-help min-w-0">
+                  {/* Nom de l'item */}
+                  <span className="text-sm truncate hover:text-fuchsia-400 transition-colors font-semibold text-zinc-100">
+                    {displayName}
+                  </span>
+                  
+                  {/* Date de demande (Petit badge discret) */}
+                  {dateDemand && (
+                    <div className="flex items-center gap-1 text-[9px] text-fuchsia-400/50 uppercase font-black tracking-tighter">
+                      <Calendar className="h-2.5 w-2.5" />
+                      <span>
+                        {new Date(dateDemand).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
+                          day: '2-digit',
+                          month: '2-digit'
+                        })}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </Tooltip.Trigger>
               <Tooltip.Portal>
                 <Tooltip.Content

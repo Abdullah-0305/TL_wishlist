@@ -3,7 +3,8 @@ import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslation } from "react-i18next";
-import { UserPlus, Users, RotateCcw } from "lucide-react";
+import { Users, RotateCcw } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 import Header from "./components/Header";
 import BossCounts from "./components/BossCounts";
@@ -18,29 +19,22 @@ import {
   getPlayers,
   setPlayerHasLooted,
   updatePlayer,
-  getArmeNameById,
-  getArmureNameById,
-  getAccessoireNameById,
   getArmes,
   getArmures,
   getAccessoires,
-  getRoleById,
-  getColorRoleById,
-  getArmeBossById,
-  getArmureBossById,
-  getAccessoireBossById,
   getPlayerById,
   resetLastLootDate
 } from "@/api/db";
 
 // --- INTERFACES ---
 interface MultiLangText { fr: string; en: string; }
+
 interface Player {
   id: string;
   name: string;
-  idArme?: string | null;
-  idArmure?: string | null;
-  idAccesoires?: string | null;
+  idArme?: string | number | null;
+  idArmure?: string | number | null;
+  idAccesoires?: string | number | null;
   has_looted_arme?: boolean;
   has_looted_armure?: boolean;
   has_looted_accessoires?: boolean;
@@ -50,11 +44,15 @@ interface Player {
   armeBoss?: MultiLangText[];
   armureBoss?: MultiLangText[];
   accessoireBoss?: MultiLangText[];
-  idRole?: string | null;
+  idRole?: string | number | null;
   roleName?: MultiLangText | null;
   roleColor?: string;
   isPresent?: boolean;
   date_last_looted_item: Date | null;
+  date_demand_arme?: Date | null;
+  date_demand_armure?: Date | null;
+  date_demand_accessoire?: Date | null;
+  wishlist?: any; // Pour garder l'accès au JSON brut lors des updates
 }
 
 const Admin: React.FC = () => {
@@ -62,9 +60,7 @@ const Admin: React.FC = () => {
   const { t, i18n } = useTranslation();
   const lang = i18n.language?.split("-")[0] as "fr" | "en" || "fr";
 
-  // Protection
-  if (!user) return <Navigate to="/login" replace />;
-
+  const [loading, setLoading] = useState(true);
   const [players, setPlayers] = useState<Player[]>([]);
   const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([]);
   const [items, setItems] = useState({ armes: [], armures: [], accessoires: [] });
@@ -78,54 +74,77 @@ const Admin: React.FC = () => {
   const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null);
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
 
+  // --- CHARGEMENT OPTIMISÉ (LOGIQUE DICTIONNAIRE) ---
   const loadData = async () => {
     try {
-      const [a, ar, ac, pRes] = await Promise.all([
-        getArmes(), getArmures(), getAccessoires(), getPlayers()
+      setLoading(true);
+      // On récupère TOUT en parallèle pour gagner du temps
+      const [armesRes, armuresRes, accRes, rolesRes, playersRes] = await Promise.all([
+        getArmes(),
+        getArmures(),
+        getAccessoires(),
+        supabase.from('roles').select('*'),
+        getPlayers()
       ]);
-      setItems({ armes: a.data || [], armures: ar.data || [], accessoires: ac.data || [] });
-      
-      if (pRes.data) {
-        const enriched = await Promise.all(pRes.data.map(async (p: any) => {
-          // 🛠️ On extrait la wishlist de la BDD
+
+      // On crée des Maps (indexation par ID) pour éviter de boucler 1000 fois
+      const weaponsMap = new Map(armesRes.data?.map(i => [i.id.toString(), i]));
+      const armorsMap = new Map(armuresRes.data?.map(i => [i.id.toString(), i]));
+      const accMap = new Map(accRes.data?.map(i => [i.id.toString(), i]));
+      const rolesMap = new Map(rolesRes.data?.map(r => [r.id.toString(), r]));
+
+      setItems({ 
+        armes: armesRes.data || [], 
+        armures: armuresRes.data || [], 
+        accessoires: accRes.data || [] 
+      });
+
+      if (playersRes.data) {
+        const enriched = playersRes.data.map((p: any) => {
           const wl = p.wishlist || {};
 
+          // Vérification auto des 7 jours pour le reset du loot date
           if (wl.date_last_looted_item && (new Date().getTime() - new Date(wl.date_last_looted_item).getTime()) / 86400000 > 7) {
-            await resetLastLootDate(p.id);
+            resetLastLootDate(p.id); // On ne met pas await pour ne pas bloquer l'affichage
             wl.date_last_looted_item = null;
           }
 
-          // 🛠️ On renvoie un objet "plat" pour que PlayerGrid n'ait rien à changer
+          // On pioche les infos dans nos Maps
+          const wData = weaponsMap.get(wl.id_arme?.toString());
+          const aData = armorsMap.get(wl.id_armure?.toString());
+          const acData = accMap.get(wl.id_accessoire?.toString());
+          const rData = rolesMap.get(p.role?.toString());
+
           return {
             ...p,
-            name: p.discord_name, // On utilise le discord_name pour l'affichage
+            name: p.discord_name,
             isPresent: false,
-            
-            // On mappe le JSON wishlist vers les variables attendues par l'interface
+            wishlist: wl, // On stocke pour les updates futurs
+
             idArme: wl.id_arme,
             idArmure: wl.id_armure,
             idAccesoires: wl.id_accessoire,
             has_looted_arme: wl.has_looted_arme || false,
             has_looted_armure: wl.has_looted_armure || false,
             has_looted_accessoires: wl.has_looted_accessoires || false,
+            
             date_last_looted_item: wl.date_last_looted_item ? new Date(wl.date_last_looted_item) : null,
             date_demand_arme: wl.date_demand_arme ? new Date(wl.date_demand_arme) : null,
             date_demand_armure: wl.date_demand_armure ? new Date(wl.date_demand_armure) : null,
             date_demand_accessoire: wl.date_demand_accessoire ? new Date(wl.date_demand_accessoire) : null,
 
-
-            armeName: wl.id_arme ? await getArmeNameById(wl.id_arme) : null,
-            armureName: wl.id_armure ? await getArmureNameById(wl.id_armure) : null,
-            accessoireName: wl.id_accessoire ? await getAccessoireNameById(wl.id_accessoire) : null,
-            armeBoss: wl.id_arme ? await getArmeBossById(wl.id_arme) : [],
-            armureBoss: wl.id_armure ? await getArmureBossById(wl.id_armure) : [],
-            accessoireBoss: wl.id_accessoire ? await getAccessoireBossById(wl.id_accessoire) : [],
+            armeName: wData?.name || null,
+            armureName: aData?.name || null,
+            accessoireName: acData?.name || null,
+            armeBoss: wData?.boss_names || [], 
+            armureBoss: aData?.boss_names || [],
+            accessoireBoss: acData?.boss_names || [],
             
             idRole: p.role,
-            roleName: p.role ? await getRoleById(p.role) : null,
-            roleColor: p.role ? await getColorRoleById(p.role) : "#9CA3AF"
+            roleName: rData?.name || null,
+            roleColor: rData?.color || "#9CA3AF"
           };
-        }));
+        });
         
         setPlayers(enriched);
         setFilteredPlayers(enriched);
@@ -133,11 +152,14 @@ const Admin: React.FC = () => {
     } catch (err) { 
       console.error(err);
       toast.error(t("admin.load_error")); 
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => { loadData(); }, []);
 
+  // --- FILTRAGE ---
   useEffect(() => {
     let result = players;
     if (selectedBoss) {
@@ -152,6 +174,7 @@ const Admin: React.FC = () => {
     setFilteredPlayers(result);
   }, [selectedFilter, selectedBoss, players, lang]);
 
+  // --- COMPTAGE BOSS ---
   const bossCounts = useMemo(() => {
     const c: Record<string, Record<string, number>> = { armes: {}, armures: {}, accessoires: {} };
     
@@ -162,27 +185,24 @@ const Admin: React.FC = () => {
     });
 
     const sort = (obj: Record<string, number>): [string, number][] => 
-      Object.entries(obj)
-        .filter(([, v]) => v > 0)
-        .sort((a, b) => b[1] - a[1]);
+      Object.entries(obj).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
 
-    return { 
-        armes: sort(c.armes), 
-        armures: sort(c.armures), 
-        accessoires: sort(c.accessoires) 
-    };
+    return { armes: sort(c.armes), armures: sort(c.armures), accessoires: sort(c.accessoires) };
   }, [players, lang]);
 
+  // --- ACTIONS ---
   const confirmBlock = async () => {
     if (!target) return;
     try {
-      // Celle-ci on l'avait déjà modifiée côté api/db.ts pour qu'elle gère le JSON !
       await setPlayerHasLooted(target.playerId, target.mode === "block", target.itemType);
       toast.success(t("admin.action_success"));
       await loadData();
     } catch { toast.error(t("admin.action_error")); }
     setModalOpen(false);
   };
+
+  // Protection
+  if (!user) return <Navigate to="/login" replace />;
 
   return (
     <div className="min-h-screen bg-[#0a0b10] bg-[radial-gradient(ellipse_at_top,_rgba(88,28,135,0.15)_0%,_rgba(10,11,16,1)_80%)] text-zinc-100 pb-20">
@@ -197,131 +217,111 @@ const Admin: React.FC = () => {
           onReset={() => setSelectedBoss(null)} 
         />
 
-        {/* --- ZONE DE CONTRÔLE --- */}
         <div className="space-y-4">
-          <FilterBar 
-            selectedFilter={selectedFilter} 
-            setSelectedFilter={setSelectedFilter} 
-            {...items} 
-          />
+          <FilterBar selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter} {...items} />
 
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-start gap-4">
-            
             <div className="grid grid-cols-2 lg:flex items-center gap-2 bg-[#1e1333]/60 p-1.5 rounded-xl border border-white/5 shadow-inner w-full lg:w-fit">
               <Button 
                 variant="ghost" 
                 onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: false})))}
-                className="flex items-center justify-center gap-2 text-fuchsia-300/70 hover:text-white text-[9px] xs:text-[10px] font-black uppercase tracking-widest h-12 lg:h-10 px-4 sm:px-6 hover:bg-fuchsia-600/20 transition-all active:scale-95 text-center min-w-0"
+                className="flex items-center justify-center gap-2 text-fuchsia-300/70 hover:text-white text-[10px] font-black uppercase tracking-widest h-10 px-6 hover:bg-fuchsia-600/20 transition-all active:scale-95"
               >
-                <RotateCcw className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" /> 
-                <span className="leading-tight break-words py-1 overflow-hidden">
-                  {t("admin.reset_presence")}
-                </span>
+                <RotateCcw className="h-3.5 w-3.5" /> {t("admin.reset_presence")}
               </Button>
-              
-              <div className="hidden lg:block w-[1px] h-6 bg-white/10 mx-1 flex-shrink-0" />
-
+              <div className="hidden lg:block w-[1px] h-6 bg-white/10 mx-1" />
               <Button 
                 variant="ghost" 
                 onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: true})))}
-                className="flex items-center justify-center gap-2 text-fuchsia-300/70 hover:text-white text-[9px] xs:text-[10px] font-black uppercase tracking-widest h-12 lg:h-10 px-4 sm:px-6 hover:bg-fuchsia-600/20 transition-all active:scale-95 text-center min-w-0"
+                className="flex items-center justify-center gap-2 text-fuchsia-300/70 hover:text-white text-[10px] font-black uppercase tracking-widest h-10 px-6 hover:bg-fuchsia-600/20 transition-all active:scale-95"
               >
-                <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" /> 
-                <span className="leading-tight break-words py-1 overflow-hidden">
-                  {t("admin.set_all_presence")}
-                </span>
+                <Users className="h-3.5 w-3.5" /> {t("admin.set_all_presence")}
               </Button>
             </div>
           </div>
         </div>
 
-        {/* --- GRILLE DES JOUEURS --- */}
         <div className="pt-4 relative">
           <div className="absolute -inset-10 bg-fuchsia-600/5 blur-[120px] pointer-events-none opacity-50" />
-          
-          <PlayerGrid
-            players={filteredPlayers}
-            openModal={(id, type) => {
-              const p = players.find(x => x.id === id);
-              if (!p) return;
-              const has = type === "arme" ? p.has_looted_arme : type === "armure" ? p.has_looted_armure : p.has_looted_accessoires;
-              setTarget({ playerId: id, itemType: type, mode: has ? "unblock" : "block", playerName: p.name });
-              setModalOpen(true);
-            }}
-            openRemoveModal={(id, type) => {
-              const p = players.find(x => x.id === id);
-              setRemoveTarget({ playerId: id, itemType: type, playerName: p?.name });
-              setRemoveModalOpen(true);
-            }}
-            togglePresence={(id) => setPlayers(prev => prev.map(p => p.id === id ? { ...p, isPresent: !p.isPresent } : p))}
-            loadPlayers={loadData}
-          />
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <div className="w-10 h-10 border-4 border-fuchsia-500/20 border-t-fuchsia-500 rounded-full animate-spin" />
+            </div>
+          ) : (
+            <PlayerGrid
+              players={filteredPlayers}
+              openModal={(id, type) => {
+                const p = players.find(x => x.id === id);
+                if (!p) return;
+                const has = type === "arme" ? p.has_looted_arme : type === "armure" ? p.has_looted_armure : p.has_looted_accessoires;
+                setTarget({ playerId: id, itemType: type, mode: has ? "unblock" : "block", playerName: p.name });
+                setModalOpen(true);
+              }}
+              openRemoveModal={(id, type) => {
+                const p = players.find(x => x.id === id);
+                setRemoveTarget({ playerId: id, itemType: type, playerName: p?.name });
+                setRemoveModalOpen(true);
+              }}
+              togglePresence={(id) => setPlayers(prev => prev.map(p => p.id === id ? { ...p, isPresent: !p.isPresent } : p))}
+              loadPlayers={loadData}
+            />
+          )}
         </div>
       </div>
 
       <BlockModal open={modalOpen} onOpenChange={setModalOpen} target={target} onConfirm={confirmBlock} />
       
-      {/* 🛠️ CORRECTION : Le modal de suppression met à jour le JSON */}
       <RemoveModal 
         open={removeModalOpen} 
         onOpenChange={setRemoveModalOpen} 
         target={removeTarget} 
         onConfirm={async () => {
           if (!removeTarget) return;
-
           try {
             const { data: currentPlayer } = await getPlayerById(removeTarget.playerId);
-            const currentWishlist = currentPlayer?.wishlist || {};
-            const newWishlist = { ...currentWishlist };
+            const newWishlist = { ...currentPlayer?.wishlist };
             
-            if (removeTarget.itemType === "arme") {
-              newWishlist.id_arme = null;
-              newWishlist.has_looted_arme = false;
-            } else if (removeTarget.itemType === "armure") {
-              newWishlist.id_armure = null;
-              newWishlist.has_looted_armure = false;
-            } else if (removeTarget.itemType === "accessoire") {
-              newWishlist.id_accessoire = null;
-              newWishlist.has_looted_accessoires = false;
-            }
+            if (removeTarget.itemType === "arme") { newWishlist.id_arme = null; newWishlist.has_looted_arme = false; }
+            else if (removeTarget.itemType === "armure") { newWishlist.id_armure = null; newWishlist.has_looted_armure = false; }
+            else if (removeTarget.itemType === "accessoire") { newWishlist.id_accessoire = null; newWishlist.has_looted_accessoires = false; }
 
-            // On update avec le nouveau JSON !
             await updatePlayer(removeTarget.playerId, { wishlist: newWishlist });
-            
             toast.success(t("admin.action_success"));
             await loadData();
-          } catch (error) {
-            toast.error(t("admin.action_error"));
-          } finally {
-            setRemoveModalOpen(false);
-          }
+          } catch { toast.error(t("admin.action_error")); }
+          setRemoveModalOpen(false);
         }} 
       />
 
-      {/* 🛠️ CORRECTION : Le modal de reset global met à jour tous les JSON */}
-      <UnlockAllModal open={unlockModalOpen} onOpenChange={setUnlockModalOpen} target={null} onConfirm={async () => {
-        await Promise.all(players.map(async p => {
-           const { data: currentPlayer } = await getPlayerById(p.id);
-           const currentWishlist = currentPlayer?.wishlist || {};
-           const newWishlist = {
-             ...currentWishlist,
-             has_looted_arme: false,
-             has_looted_armure: false,
-             has_looted_accessoires: false,
-             id_arme: null,
-             id_armure: null,
-             id_accessoire: null,
-             date_demand_arme: null,
-             date_demand_armure: null,
-             date_demand_accessoire: null,
-             date_last_looted_item: null
-           };
-           return updatePlayer(p.id, { wishlist: newWishlist });
-        }));
-        await loadData();
-        setUnlockModalOpen(false);
-      }} />
-
+      <UnlockAllModal 
+        open={unlockModalOpen} 
+        onOpenChange={setUnlockModalOpen} 
+        target={null} 
+        onConfirm={async () => {
+          try {
+            await Promise.all(players.map(async p => {
+               const { data: currentPlayer } = await getPlayerById(p.id);
+               const newWishlist = {
+                 ...currentPlayer?.wishlist,
+                 has_looted_arme: false,
+                 has_looted_armure: false,
+                 has_looted_accessoires: false,
+                 id_arme: null,
+                 id_armure: null,
+                 id_accessoire: null,
+                 date_demand_arme: null,
+                 date_demand_armure: null,
+                 date_demand_accessoire: null,
+                 date_last_looted_item: null
+               };
+               return updatePlayer(p.id, { wishlist: newWishlist });
+            }));
+            toast.success(t("admin.reset_success"));
+            await loadData();
+          } catch { toast.error(t("admin.action_error")); }
+          setUnlockModalOpen(false);
+        }} 
+      />
     </div>
   );
 };
