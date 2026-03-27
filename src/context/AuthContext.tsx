@@ -78,10 +78,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         playerInfo = newPlayer;
       }
 
-      // 3. VERDICT FINAL
+      // 3. On met à jour si nécessaire l'image du joueur
+      if (playerInfo && authUser.user_metadata?.avatar_url !== playerInfo.avatar_url) {
+        await supabase
+          .from("players")
+          .update({ avatar_url: authUser.user_metadata.avatar_url })
+          .eq("id", authUser.id);
+      }
+
+      // 4. Login sur le site
       if (playerInfo) {
         setUser({ ...authUser, is_admin: playerInfo.is_admin });
-        // On ne nettoie le "is_signing_up" qu'une fois que tout est OK
+        // On nettoie le "is_signing_up" qu'une fois que tout est OK
         sessionStorage.removeItem("is_signing_up"); 
       } else {
         await signOut();
