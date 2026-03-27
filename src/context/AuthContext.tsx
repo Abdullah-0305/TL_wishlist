@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from "r
 import { supabase } from "@/lib/supabase";
 import { Session, User } from "@supabase/supabase-js";
 import { getPlayerById } from "@/api/db";
-
+ 
 interface ExtendedUser extends User {
   isAdmin?: boolean;
 }
@@ -15,10 +15,11 @@ interface AuthContextType {
   signInWithDiscord: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const DISCORD_GUILD_ID = import.meta.env.DISCORD_GUILD_ID;
+const REQUIRED_ROLE_ID = import.meta.env.REQUIRED_ROLE_ID;
 
-const DISCORD_GUILD_ID = "1434106360395726860"; 
-const REQUIRED_ROLE_ID = "1486827290561085731";
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);

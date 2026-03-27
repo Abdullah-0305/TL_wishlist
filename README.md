@@ -55,6 +55,7 @@ Avant le lancement, configurez les variables suivantes dans votre environnement 
 ```bash
 VITE_SUPABASE_URL=<votre_instance_supabase_url>
 VITE_SUPABASE_ANON_KEY=<votre_cle_anon_publique>
+MAINTENANCE_MODE=<false ou true>
 DISCORD_GUILD_ID=<id_du_serveur_discord>
 REQUIRED_ROLE_ID=<id_du_role_autorise>
 ```
