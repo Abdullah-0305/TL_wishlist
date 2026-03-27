@@ -107,7 +107,8 @@ i18n
                 "present": "Présent",
                 "choices": "Choix actuels",
                 "last_loot": "Dernier loot obtenu : ",
-                "none": "Aucun"
+                "none": "Aucun",
+                "elevate_player": "Promouvoir le joueur"
             },
             "item_row": {
                 "none": "Aucun(e)",
@@ -177,6 +178,15 @@ i18n
                 "desc_all": "Attention : Vous allez vider les wishlists et les statuts de loot de TOUS les membres. Cette action est irréversible.",
                 "desc_single": "Voulez-vous réinitialiser entièrement la fiche de <1>{{name}}</1> ?",
                 "btn_confirm": "Exécuter le Reset"
+            },
+            "new_admin": {
+                "title": "Promotion Officielle",
+                "description": "Vous allez élever <1>{{name}}</1> au rang de Co-Gestionnaire. Cette action lui confère les pleins pouvoirs d'administration. Tapez son nom pour valider cette promotion.",
+                "btn_cancel": "Annuler la promotion",
+                "btn_confirm": "Confirmer",
+                "success": "{{name}} a été promu Co-Gestionnaire avec succès. Bienvenue dans l'équipe !",
+                "error_mismatch": "Le nom saisi ne correspond pas. Veuillez réessayer.",
+                "error_api": "Impossible de promouvoir le joueur. Erreur serveur ou RLS."
             }
         }
       },
@@ -280,7 +290,8 @@ i18n
                 "present": "Present",
                 "choices": "Current choices",
                 "last_loot": "Last loot obtained: ",
-                "none": "None"
+                "none": "None",
+                "elevate_player": "Elevate player"
             },
             "item_row": {
                 "none": "None",
@@ -350,6 +361,15 @@ i18n
                 "desc_all": "Warning: You are about to clear wishlists and loot status for ALL members. This action cannot be undone.",
                 "desc_single": "Do you want to entirely reset the profile of <1>{{name}}</1> ?",
                 "btn_confirm": "Execute Reset"
+            },
+            "new_admin": {
+                "title": "Official Promotion",
+                "description": "You are about to elevate <1>{{name}}</1> to the rank of Co-Manager. This action grants them full administrative powers. Type their name to validate this promotion.",
+                "btn_cancel": "Cancel promotion",
+                "btn_confirm": "Confirm Rank",
+                "success": "{{name}} has been successfully promoted to Co-Manager. Welcome to the team!",
+                "error_mismatch": "The name entered does not match. Please try again.",
+                "error_api": "Unable to promote the player. Server or RLS error."
             }
         }
       }

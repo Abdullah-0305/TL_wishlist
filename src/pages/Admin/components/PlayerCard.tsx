@@ -1,16 +1,18 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { UserCog, MoreVertical, Calendar } from "lucide-react";
+import { UserCog, MoreVertical, Calendar, ShieldCheck, UserX} from "lucide-react";
 import ItemRow from "./ItemRow";
 import { useState, useRef, useEffect } from "react";
 import DeletePlayerModal from "./DeletePlayerModal.tsx";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import NewAdminModal from "./NewAdminModal.tsx";
 
 const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPlayers }) => {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as "fr" | "en";
   
   const [menuOpen, setMenuOpen] = useState(false);
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -66,16 +68,35 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
         {menuOpen && (
           <div
             ref={menuRef}
-            className="absolute right-2 top-11 bg-[#2d1b4d] shadow-2xl rounded-lg border border-fuchsia-500/40 z-30 w-48 overflow-hidden animate-in fade-in zoom-in-95"
+            className="absolute right-2 top-11 bg-[#1e1333] shadow-[0_10px_40px_rgba(0,0,0,0.5)] rounded-xl border border-fuchsia-500/20 z-30 w-56 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
           >
+            {/* --- BOUTON ÉLÉVATION (OR) --- */}
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                setAdminModalOpen(true);
+              }}
+              disabled={player.is_admin === true}
+              className="w-full flex items-center justify-between px-4 py-3 text-[11px] text-gaming-gold hover:bg-gaming-gold/10 transition-all duration-200 group/btn font-black uppercase tracking-widest border-b border-white/5"
+            >
+              <span className="group-hover:translate-x-1 transition-transform">
+                {t("player_card.elevate_player")}
+              </span>
+              <ShieldCheck className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+            </button>
+
+            {/* --- BOUTON SUPPRESSION (ROUGE) --- */}
             <button
               onClick={() => {
                 setMenuOpen(false);
                 setDeleteModalOpen(true);
               }}
-              className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-red-500/20 transition font-bold"
+              className="w-full flex items-center justify-between px-4 py-3 text-[11px] text-red-400 hover:bg-red-500/10 transition-all duration-200 group/del font-black uppercase tracking-widest"
             >
-              {t("player_card.delete_player")}
+              <span className="group-hover:translate-x-1 transition-transform">
+                {t("player_card.delete_player")}
+              </span>
+              <UserX className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" />
             </button>
           </div>
         )}
@@ -166,6 +187,13 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
           )}
         </CardContent>
       </Card>
+
+      <NewAdminModal
+        open={adminModalOpen}
+        onOpenChange={setAdminModalOpen}
+        player={player}
+        loadPlayers={loadPlayers}
+      />
 
       <DeletePlayerModal
         open={deleteModalOpen}

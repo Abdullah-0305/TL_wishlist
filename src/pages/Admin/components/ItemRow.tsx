@@ -38,7 +38,6 @@ const ItemRow = ({ type, player, dateDemand, openModal, openRemoveModal }) => {
     ? bosses.map((b: any) => b[lang] || b['fr']).join(", ") 
     : t("item_row.no_boss");
 
-  console.log(player)
   const hasItem = !!itemData;
 
   const formattedDemand = dateDemand 

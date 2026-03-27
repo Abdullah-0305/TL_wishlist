@@ -97,3 +97,7 @@ export async function getAccessoireBossById(id: string): Promise<string[]> {
   if (error) throw error;
   return data?.map(d => (d.boss as any)?.name).filter(Boolean) || [];
 }
+
+export async function updateAdmin(id:string) {
+  return await supabase.from("players").update({ is_admin: true }).eq("id", id).select();
+}

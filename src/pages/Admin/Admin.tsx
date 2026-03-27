@@ -83,7 +83,7 @@ const Admin: React.FC = () => {
         getArmes(),
         getArmures(),
         getAccessoires(),
-        supabase.from('roles').select('*'),
+        supabase.from('role').select('*'),
         getPlayers()
       ]);
 
