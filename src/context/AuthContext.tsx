@@ -26,7 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const isprocessing = useRef(false);
 
-const fetchExtendedUser = async (currentSession: Session | null) => {
+  const fetchExtendedUser = async (currentSession: Session | null) => {
     if (isprocessing.current || !currentSession?.user) return;
 
     try {
@@ -35,10 +35,11 @@ const fetchExtendedUser = async (currentSession: Session | null) => {
       const checkKey = `discord_verified_${authUser.id}`;
       const isSigningUp = sessionStorage.getItem("is_signing_up") === "true";
       
-      // 1. On prépare une variable pour le nom (fallback sur le nom metadata)
+      // Nom par défaut (Metadatas Supabase)
       let effectiveName = authUser.user_metadata?.full_name || authUser.user_metadata?.name;
+      let hasDiscordData = false;
 
-      // 1. VÉRIFICATION DISCORD
+      // 1. VÉRIFICATION DISCORD (Pseudo Serveur & Rôles)
       if (currentSession.provider_token) {
         if (!sessionStorage.getItem(checkKey) || isSigningUp) {
           const discordRes = await fetch(
@@ -48,21 +49,27 @@ const fetchExtendedUser = async (currentSession: Session | null) => {
 
           if (discordRes.ok) {
             const memberData = await discordRes.json();
-            
-            // On récupère le pseudo du serveur (nick) s'il existe
+            hasDiscordData = true; // On confirme qu'on a les infos fraîches du serveur
+
+            // Priorité au pseudo du serveur (nick)
             if (memberData.nick) {
               effectiveName = memberData.nick;
+            } else if (memberData.user?.global_name) {
+              effectiveName = memberData.user.global_name;
             }
 
+            // Vérification du rôle requis
             if (!memberData.roles.includes(REQUIRED_ROLE_ID)) {
               await signOut();
               return;
             }
             sessionStorage.setItem(checkKey, "true");
           } else if (discordRes.status === 429) {
-            isprocessing.current = false; // Important de libérer avant de sortir
+            // Rate limit : on sort proprement pour laisser le loading finir
+            setLoading(false);
             return; 
           } else {
+            // Erreur critique (ex: banni du serveur)
             await signOut();
             return;
           }
@@ -72,8 +79,8 @@ const fetchExtendedUser = async (currentSession: Session | null) => {
       // 2. RÉCUPÉRATION / CRÉATION EN DB
       let { data: playerInfo } = await getPlayerById(authUser.id);
 
-      if (!playerInfo && isSigningUp && currentSession.provider_token) {
-        // ICI : effectiveName est maintenant accessible !
+      // Création automatique si premier login
+      if (!playerInfo && isSigningUp) {
         const { data: newPlayer } = await supabase
           .from("players")
           .insert([{ 
@@ -87,28 +94,34 @@ const fetchExtendedUser = async (currentSession: Session | null) => {
       }
 
       // 3. SYNCHRONISATION (Nom et Avatar)
-      // On met à jour si le nom ou l'avatar a changé sur Discord
       if (playerInfo) {
-        const hasNameChanged = effectiveName && playerInfo.discord_name !== effectiveName;
-        const hasAvatarChanged = authUser.user_metadata?.avatar_url !== playerInfo.avatar_url;
+        // IMPORTANT : On ne met à jour le nom QUE SI on vient de le récupérer via Discord (hasDiscordData)
+        // Sinon, au refresh (F5), effectiveName redevient le nom global et écraserait le pseudo serveur.
+        const nameNeedsUpdate = hasDiscordData && effectiveName && playerInfo.discord_name !== effectiveName;
+        const avatarNeedsUpdate = authUser.user_metadata?.avatar_url !== playerInfo.avatar_url;
 
-        if (hasNameChanged || hasAvatarChanged) {
-          await supabase
+        if (nameNeedsUpdate || avatarNeedsUpdate) {
+          const { data: updatedPlayer } = await supabase
             .from("players")
             .update({ 
-              discord_name: effectiveName,
+              discord_name: nameNeedsUpdate ? effectiveName : playerInfo.discord_name,
               avatar_url: authUser.user_metadata?.avatar_url 
             })
-            .eq("id", authUser.id);
+            .eq("id", authUser.id)
+            .select()
+            .single();
+            
+          if (updatedPlayer) playerInfo = updatedPlayer;
         }
       }
 
-      // 4. Login sur le site
+      // 4. Finalisation de la session application
       if (playerInfo) {
         setUser({ ...authUser, is_admin: playerInfo.is_admin });
         sessionStorage.removeItem("is_signing_up"); 
       } else {
-        await signOut();
+        // Si le joueur n'est ni en DB ni créable, on déconnecte
+        if (!isSigningUp) await signOut();
       }
 
     } catch (error) {
@@ -124,8 +137,7 @@ const fetchExtendedUser = async (currentSession: Session | null) => {
       const { data: { session: s } } = await supabase.auth.getSession();
       
       if (s) {
-        // Force le re-check Discord au rafraîchissement (F5)
-        // Mais UNIQUEMENT si on n'est pas en train de revenir d'un clic de login
+        // Force le re-check Discord au refresh sauf si on vient de cliquer sur Login
         if (sessionStorage.getItem("is_signing_up") !== "true") {
           sessionStorage.removeItem(`discord_verified_${s.user.id}`);
         }
@@ -155,7 +167,6 @@ const fetchExtendedUser = async (currentSession: Session | null) => {
 
   const signInWithDiscord = async () => {
     setLoading(true);
-    // On marque l'intention AVANT
     sessionStorage.setItem("is_signing_up", "true");
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "discord",
@@ -174,6 +185,7 @@ const fetchExtendedUser = async (currentSession: Session | null) => {
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
+    setLoading(false);
     sessionStorage.clear();
   };
 

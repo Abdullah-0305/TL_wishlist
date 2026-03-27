@@ -194,7 +194,7 @@ const Admin: React.FC = () => {
   const confirmBlock = async () => {
     if (!target) return;
     try {
-      await setPlayerHasLooted(target.playerId, target.mode === "block", target.itemType);
+      await setPlayerHasLooted(target.playerId, target.mode === "block", target.itemType, user.id);
       toast.success(t("admin.action_success"));
       await loadData();
     } catch { toast.error(t("admin.action_error")); }

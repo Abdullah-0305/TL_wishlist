@@ -1,3 +1,4 @@
+import { useAuth } from "@/context/AuthContext";
 import { supabase } from "../lib/supabase";
 
 export interface Player {
@@ -42,15 +43,65 @@ export async function deletePlayer(id: string) {
   return await supabase.from("players").delete().eq("id", id);
 }
 
-export async function setPlayerHasLooted(id: string, value: boolean, itemType: "arme" | "armure" | "accessoire" = "arme") {
-  const columnMap = { arme: "has_looted_arme", armure: "has_looted_armure", accessoire: "has_looted_accessoires" } as const;
+// Ajoute "adminId" en paramètre
+export async function setPlayerHasLooted(
+  id: string, 
+  value: boolean, 
+  itemType: "arme" | "armure" | "accessoire",
+  adminId: string // <--- On le récupère depuis le composant React
+) {
+  const columnMap = { 
+    arme: "has_looted_arme", 
+    armure: "has_looted_armure", 
+    accessoire: "has_looted_accessoires" 
+  } as const;
+  
+  const tableMap = {
+    arme: "armes",
+    armure: "armures",
+    accessoire: "accessoires"
+  } as const;
+
   const today = new Date().toISOString().split("T")[0];
   
+  // 1. Récupérer le joueur et sa wishlist
   const { data: player } = await getPlayerById(id);
   const currentWishlist = player?.wishlist || {};
-  const newWishlist = { ...currentWishlist, [columnMap[itemType]]: value, date_last_looted_item: value ? today : null };
+  
+  // 2. Mettre à jour la wishlist du joueur
+  const newWishlist = { 
+    ...currentWishlist, 
+    [columnMap[itemType]]: value, 
+    date_last_looted_item: value ? today : currentWishlist.date_last_looted_item 
+  };
+  await updatePlayer(id, { wishlist: newWishlist });
 
-  return updatePlayer(id, { wishlist: newWishlist });
+  // 3. HISTORIQUE (Uniquement si value est TRUE, on n'historise pas les décochages)
+  if (value) {
+    const itemId = currentWishlist[itemType === "arme" ? "id_arme" : itemType === "armure" ? "id_armure" : "id_accessoire"];
+    
+    if (itemId) {
+      // On va chercher le nom de l'item dans sa table respective
+      const { data: itemData } = await supabase
+        .from(tableMap[itemType])
+        .select("name")
+        .eq("id", itemId)
+        .maybeSingle();
+
+      if (itemData) {
+        const historyData = {
+          player_id: id,
+          admin_id: adminId, // Reçu en paramètre
+          item_name_fr: itemData.name.fr,
+          item_name_en: itemData.name.en,
+          item_type: itemType
+        };
+        await addLootToHistory(historyData);
+      }
+    }
+  }
+
+  return { success: true };
 }
 
 export const resetLastLootDate = async (playerId: string) => {
@@ -100,4 +151,13 @@ export async function getAccessoireBossById(id: string): Promise<string[]> {
 
 export async function updateAdmin(id:string) {
   return await supabase.from("players").update({ is_admin: true }).eq("id", id).select();
+}
+
+export async function addLootToHistory(data: { 
+  player_id: string, 
+  admin_id: string,
+  item_name_fr: string,
+  item_name_en: string
+}) {
+  return await supabase.from("loot_history").insert([data]);
 }
