@@ -41,7 +41,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       isprocessing.current = true;
-      console.log("🚀 [Auth] Début du traitement de session...");
 
       // 1. VÉRIFICATION DISCORD (Uniquement si nouveau login avec token)
       if (currentSession?.provider_token) {
@@ -54,7 +53,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           );
 
           if (discordRes.status === 429) {
-            console.error("🛑 [Discord] Trop de requêtes (429). Arrêt pour éviter le ban.");
             isprocessing.current = false;
             return; 
           }
@@ -62,15 +60,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (discordRes.ok) {
             const memberData = await discordRes.json();
             if (!memberData.roles.includes(REQUIRED_ROLE_ID)) {
-              console.error("❌ [Discord] Grade manquant.");
               await supabase.auth.signOut();
               isprocessing.current = false;
               return;
             }
             sessionStorage.setItem(checkKey, "true");
-            console.log("✅ [Discord] Grade validé.");
           } else {
-            console.error("❌ [Discord] Erreur API ou absent du serveur.");
             await supabase.auth.signOut();
             isprocessing.current = false;
             return;
@@ -81,21 +76,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // 2. RÉCUPÉRATION / CRÉATION EN DB
       let { data: playerInfo } = await getPlayerById(authUser.id);
 
-      if (!playerInfo && currentSession?.provider_token) {
+      if (!playerInfo && currentSession?.provider_token && sessionStorage.getItem("is_signing_up") === "true"){
         const discordName = authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || "Soldat";
         const { data: newPlayer } = await supabase
           .from("players")
-          .insert([{ id: authUser.id, discord_name: discordName, isAdmin: false }])
+          .insert([{ id: authUser.id, discord_name: discordName, avatar_url: authUser.user_metadata?.avatar_url ,isAdmin: false }])
           .select().maybeSingle();
         playerInfo = newPlayer;
+        sessionStorage.removeItem("is_signing_up");
       }
 
       if (playerInfo) {
         setUser({ ...authUser, isAdmin: playerInfo.isAdmin });
       }
+      else {
+        signOut();
+      }
 
     } catch (error) {
-      console.error("💥 [Auth] Erreur critique:", error);
+
     } finally {
       isprocessing.current = false;
       setLoading(false);
@@ -114,7 +113,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Écouteur d'événements filtré
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
-      console.log(`🔄 [Auth] Event: ${event}`);
       
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         setSession(s);
@@ -132,6 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithDiscord = async () => {
     setLoading(true);
+    sessionStorage.setItem("is_signing_up", "true");
     await supabase.auth.signInWithOAuth({
       provider: "discord",
       options: { 
