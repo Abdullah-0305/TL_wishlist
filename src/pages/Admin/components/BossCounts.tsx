@@ -27,7 +27,7 @@ const BossCounts: React.FC<BossCountsProps> = ({
     { 
       label: t("boss_counts.weapons"), 
       data: bossCounts.armes, 
-      color: "text-fuchsia-400", 
+      color: "text-amber-400", 
       icon: <Swords className="h-4 w-4" />,
       glow: "group-hover:shadow-[0_0_15px_rgba(217,70,239,0.3)]"
     },
@@ -41,7 +41,7 @@ const BossCounts: React.FC<BossCountsProps> = ({
     { 
       label: t("boss_counts.accessories"), 
       data: bossCounts.accessoires, 
-      color: "text-gaming-gold", 
+      color: "text-fuchsia-400", 
       icon: <Gem className="h-4 w-4" />,
       glow: "group-hover:shadow-[0_0_15px_rgba(212,175,55,0.3)]"
     },

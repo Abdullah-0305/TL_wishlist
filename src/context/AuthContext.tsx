@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { Session, User } from "@supabase/supabase-js";
-import { getPlayerById } from "@/api/db";
 import { toast } from "sonner";
 
 interface ExtendedUser extends User {
@@ -36,6 +35,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const checkKey = `discord_verified_${authUser.id}`;
       const isSigningUp = sessionStorage.getItem("is_signing_up") === "true";
       
+      // On garde une trace de si on a réussi à obtenir des infos Discord fraîches
+      let hasFreshDiscordData = false;
       let effectiveName = authUser.user_metadata?.full_name || authUser.user_metadata?.name;
 
       // 1. VÉRIFICATION DISCORD
@@ -50,56 +51,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (discordRes.ok) {
             const memberData = await discordRes.json();
+            hasFreshDiscordData = true; // On a bien les infos du serveur !
             
             if (memberData.nick) effectiveName = memberData.nick;
             else if (memberData.user?.global_name) effectiveName = memberData.user.global_name;
 
-            // --- ERREUR DE RÔLE ---
+            // --- VÉRIFICATION DE RÔLE ---
             if (!memberData.roles.includes(REQUIRED_ROLE_ID)) {
-              toast.error("Accès refusé : Rôle Trinity requis manquant.", {
-                description: "Vérifie tes rôles sur le serveur Discord.",
+              toast.error("Accès refusé", {
+                description: "Rôle Trinity requis manquant sur le serveur Discord.",
                 duration: 5000,
               });
               
-              // On attend 2 secondes avant de déconnecter pour que le toast soit vu
               setTimeout(() => signOut(), 2000);
-              return; // STOP ICI
+              return; 
             }
             sessionStorage.setItem(checkKey, "true");
           } else if (discordRes.status === 429) {
              toast.warning("Discord sature, accès temporaire activé.");
           } else {
-             toast.error("Session Discord invalide ou membre introuvable.");
+             toast.error("Vérification Discord échouée", {
+               description: "Es-tu bien membre du serveur Trinity ?"
+             });
              setTimeout(() => signOut(), 2000);
-             return; // STOP ICI
+             return; 
           }
         }
       }
 
-      // 2. UPSERT EN BASE
+      // 2. UPSERT EN BASE (INTELLIGENT)
+      // On prépare l'objet de base (ID et Avatar)
+      const upsertData: any = { 
+        id: authUser.id, 
+        avatar_url: authUser.user_metadata?.avatar_url 
+      };
+
+      // ON NE MET À JOUR LE NOM QUE SI ON VIENT DE LE RÉCUPÉRER SUR DISCORD
+      // Cela évite que le pseudo global de l'utilisateur n'écrase le pseudo du serveur lors d'un refresh (F5)
+      if (hasFreshDiscordData && effectiveName) {
+        upsertData.discord_name = effectiveName;
+      }
+
       const { data: playerInfo, error: dbError } = await supabase
         .from("players")
-        .upsert({ 
-          id: authUser.id, 
-          discord_name: effectiveName, 
-          avatar_url: authUser.user_metadata?.avatar_url,
-        }, { onConflict: 'id' })
+        .upsert(upsertData, { onConflict: 'id' })
         .select()
         .maybeSingle();
 
       if (dbError) {
+        console.error("Erreur DB Upsert:", dbError);
         toast.error("Erreur de synchronisation avec la base de données.");
         throw dbError;
       }
 
       // 3. FINALISATION
       if (playerInfo) {
+        // On fusionne les infos Auth et les infos DB (pour is_admin)
         setUser({ ...authUser, is_admin: playerInfo.is_admin });
         
         if (isSigningUp) {
-          // Petit délai pour le succès pour ne pas l'avoir pile au chargement
           setTimeout(() => {
-            toast.success(`Content de te voir, ${effectiveName} !`, {
+            toast.success(`Content de te voir, ${playerInfo.discord_name || effectiveName} !`, {
               icon: "⚔️",
             });
           }, 500);
@@ -111,7 +123,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     } catch (error) {
       console.error("Erreur Auth Global:", error);
-      // On ne met un toast générique que si aucun autre n'a été déclenché
     } finally {
       isprocessing.current = false;
       setLoading(false);
@@ -123,7 +134,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: { session: s } } = await supabase.auth.getSession();
       
       if (s) {
-        // Force le re-check Discord au refresh sauf si on vient de cliquer sur Login
+        // On retire le flag de vérification au refresh pour forcer un re-check propre 
+        // sauf si on est en plein process de login
         if (sessionStorage.getItem("is_signing_up") !== "true") {
           sessionStorage.removeItem(`discord_verified_${s.user.id}`);
         }
@@ -175,7 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    isprocessing.current = false; // Reset du verrou avant de quitter
+    isprocessing.current = false; 
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
