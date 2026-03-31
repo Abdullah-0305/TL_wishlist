@@ -168,13 +168,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInWithDiscord = async () => {
     setLoading(true);
     sessionStorage.setItem("is_signing_up", "true");
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "discord",
       options: { 
-        scopes: "identify email guilds guilds.members.read",
+        scopes: "identify guilds guilds.members.read", // Déjà correct
+        queryParams: {
+          prompt: 'consent', // Force l'affichage de la fenêtre de consentement pour voir les changements
+          scope: 'identify guilds guilds.members.read' // On le ré-injecte ici par sécurité
+        },
         redirectTo: window.location.origin + "/wishlist" 
       },
     });
+
     if (error) {
         sessionStorage.removeItem("is_signing_up");
         setLoading(false);
