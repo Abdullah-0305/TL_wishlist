@@ -36,13 +36,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const checkKey = `discord_verified_${authUser.id}`;
       const isSigningUp = sessionStorage.getItem("is_signing_up") === "true";
       
-      // Nom par défaut (Metadatas Supabase)
       let effectiveName = authUser.user_metadata?.full_name || authUser.user_metadata?.name;
-      let hasDiscordData = false;
 
-      // 1. VÉRIFICATION DISCORD (Pseudo Serveur & Rôles)
+      // 1. VÉRIFICATION DISCORD
       if (currentSession.provider_token) {
-        if (!sessionStorage.getItem(checkKey) || isSigningUp) {
+        const needsCheck = !sessionStorage.getItem(checkKey) || isSigningUp;
+        
+        if (needsCheck) {
           const discordRes = await fetch(
             `https://discord.com/api/users/@me/guilds/${DISCORD_GUILD_ID}/member`,
             { headers: { Authorization: `Bearer ${currentSession.provider_token}` } }
@@ -50,90 +50,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (discordRes.ok) {
             const memberData = await discordRes.json();
-            hasDiscordData = true; // On confirme qu'on a les infos fraîches du serveur
+            
+            if (memberData.nick) effectiveName = memberData.nick;
+            else if (memberData.user?.global_name) effectiveName = memberData.user.global_name;
 
-            // Priorité au pseudo du serveur (nick)
-            if (memberData.nick) {
-              effectiveName = memberData.nick;
-            } else if (memberData.user?.global_name) {
-              effectiveName = memberData.user.global_name;
-            }
-
-            // Vérification du rôle requis
+            // --- ERREUR DE RÔLE ---
             if (!memberData.roles.includes(REQUIRED_ROLE_ID)) {
-              await signOut();
-              return;
+              toast.error("Accès refusé : Rôle Trinity requis manquant.", {
+                description: "Vérifie tes rôles sur le serveur Discord.",
+                duration: 5000,
+              });
+              
+              // On attend 2 secondes avant de déconnecter pour que le toast soit vu
+              setTimeout(() => signOut(), 2000);
+              return; // STOP ICI
             }
             sessionStorage.setItem(checkKey, "true");
           } else if (discordRes.status === 429) {
-            console.warn("Discord Rate Limit atteint");
-            setLoading(false);
-            isprocessing.current = false;
-            
-            // Optionnel : Alerter l'utilisateur
-            toast.error("Discord est surchargé. Réessaie dans une minute.");
-            
-            // Redirection forcée vers l'accueil
-            window.location.href = "/"; 
-            return;
+             toast.warning("Discord sature, accès temporaire activé.");
           } else {
-            // Erreur critique (ex: banni du serveur)
-            await signOut();
-            return;
+             toast.error("Session Discord invalide ou membre introuvable.");
+             setTimeout(() => signOut(), 2000);
+             return; // STOP ICI
           }
         }
       }
 
-      // 2. RÉCUPÉRATION / CRÉATION EN DB
-      let { data: playerInfo } = await getPlayerById(authUser.id);
+      // 2. UPSERT EN BASE
+      const { data: playerInfo, error: dbError } = await supabase
+        .from("players")
+        .upsert({ 
+          id: authUser.id, 
+          discord_name: effectiveName, 
+          avatar_url: authUser.user_metadata?.avatar_url,
+        }, { onConflict: 'id' })
+        .select()
+        .maybeSingle();
 
-      // Création automatique si premier login
-      if (!playerInfo && isSigningUp) {
-        const { data: newPlayer } = await supabase
-          .from("players")
-          .insert([{ 
-            id: authUser.id, 
-            discord_name: effectiveName, 
-            avatar_url: authUser.user_metadata?.avatar_url, 
-            is_admin: false 
-          }])
-          .select().maybeSingle();
-        playerInfo = newPlayer;
+      if (dbError) {
+        toast.error("Erreur de synchronisation avec la base de données.");
+        throw dbError;
       }
 
-      // 3. SYNCHRONISATION (Nom et Avatar)
-      if (playerInfo) {
-        // IMPORTANT : On ne met à jour le nom QUE SI on vient de le récupérer via Discord (hasDiscordData)
-        // Sinon, au refresh (F5), effectiveName redevient le nom global et écraserait le pseudo serveur.
-        const nameNeedsUpdate = hasDiscordData && effectiveName && playerInfo.discord_name !== effectiveName;
-        const avatarNeedsUpdate = authUser.user_metadata?.avatar_url !== playerInfo.avatar_url;
-
-        if (nameNeedsUpdate || avatarNeedsUpdate) {
-          const { data: updatedPlayer } = await supabase
-            .from("players")
-            .update({ 
-              discord_name: nameNeedsUpdate ? effectiveName : playerInfo.discord_name,
-              avatar_url: authUser.user_metadata?.avatar_url 
-            })
-            .eq("id", authUser.id)
-            .select()
-            .single();
-            
-          if (updatedPlayer) playerInfo = updatedPlayer;
-        }
-      }
-
-      // 4. Finalisation de la session application
+      // 3. FINALISATION
       if (playerInfo) {
         setUser({ ...authUser, is_admin: playerInfo.is_admin });
-        sessionStorage.removeItem("is_signing_up"); 
+        
+        if (isSigningUp) {
+          // Petit délai pour le succès pour ne pas l'avoir pile au chargement
+          setTimeout(() => {
+            toast.success(`Content de te voir, ${effectiveName} !`, {
+              icon: "⚔️",
+            });
+          }, 500);
+          sessionStorage.removeItem("is_signing_up"); 
+        }
       } else {
-        // Si le joueur n'est ni en DB ni créable, on déconnecte
-        if (!isSigningUp) await signOut();
+        await signOut();
       }
 
     } catch (error) {
-      console.error("Erreur Auth:", error);
+      console.error("Erreur Auth Global:", error);
+      // On ne met un toast générique que si aucun autre n'a été déclenché
     } finally {
       isprocessing.current = false;
       setLoading(false);
@@ -180,27 +158,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "discord",
       options: { 
-        scopes: "identify guilds guilds.members.read", // Déjà correct
+        scopes: "identify guilds guilds.members.read",
         queryParams: {
-          prompt: 'consent', // Force l'affichage de la fenêtre de consentement pour voir les changements
-          scope: 'identify guilds guilds.members.read' // On le ré-injecte ici par sécurité
+          prompt: 'consent',
+          scope: 'identify guilds guilds.members.read'
         },
-        redirectTo: window.location.origin + "/wishlist" 
+        redirectTo: `${window.location.origin}/wishlist`
       },
     });
 
     if (error) {
         sessionStorage.removeItem("is_signing_up");
+        toast.error("Échec de la connexion Discord.");
         setLoading(false);
     }
   };
 
   const signOut = async () => {
+    isprocessing.current = false; // Reset du verrou avant de quitter
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
     setLoading(false);
     sessionStorage.clear();
+    toast.info("Session terminée.");
   };
 
   return (
