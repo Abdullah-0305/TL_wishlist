@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from "r
 import { supabase } from "@/lib/supabase";
 import { Session, User } from "@supabase/supabase-js";
 import { getPlayerById } from "@/api/db";
+import { toast } from "sonner";
 
 interface ExtendedUser extends User {
   is_admin?: boolean;
@@ -65,9 +66,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
             sessionStorage.setItem(checkKey, "true");
           } else if (discordRes.status === 429) {
-            // Rate limit : on sort proprement pour laisser le loading finir
+            console.warn("Discord Rate Limit atteint");
             setLoading(false);
-            return; 
+            isprocessing.current = false;
+            
+            // Optionnel : Alerter l'utilisateur
+            toast.error("Discord est surchargé. Réessaie dans une minute.");
+            
+            // Redirection forcée vers l'accueil
+            window.location.href = "/"; 
+            return;
           } else {
             // Erreur critique (ex: banni du serveur)
             await signOut();
