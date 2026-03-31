@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { updateAdmin } from "@/api/db";
+import { toggleAdmin } from "@/api/db";
 import { useTranslation, Trans } from "react-i18next";
 import { UserPlus, ShieldCheck, Sparkles } from "lucide-react"; // Nouvelles icônes
 
@@ -39,7 +39,7 @@ const NewAdminModal: React.FC<NewAdminModalProps> = ({ open, onOpenChange, playe
       }
   
       try {
-        await updateAdmin(player.id);
+        await toggleAdmin(player.id, player.is_admin);
         toast.success(t("new_admin.success", { name: player.name }));
         onOpenChange(false);
         loadPlayers();

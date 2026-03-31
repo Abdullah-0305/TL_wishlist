@@ -149,8 +149,19 @@ export async function getAccessoireBossById(id: string): Promise<string[]> {
   return data?.map(d => (d.boss as any)?.name).filter(Boolean) || [];
 }
 
-export async function updateAdmin(id:string) {
-  return await supabase.from("players").update({ is_admin: true }).eq("id", id).select();
+export async function toggleAdmin(id: string, currentStatus: boolean) {
+  const { data, error } = await supabase
+    .from("players")
+    .update({ is_admin: !currentStatus })
+    .eq("id", id)
+    .select(); // Enlève .single() pour le debug, utilise juste .select()
+
+  if (error) {
+    console.error("Erreur Toggle Admin:", error);
+    return { error };
+  }
+
+  return { data: data?.[0] }; // On prend le premier élément manuellement
 }
 
 export async function addLootToHistory(data: { 
