@@ -52,7 +52,7 @@ interface Player {
   date_demand_arme?: Date | null;
   date_demand_armure?: Date | null;
   date_demand_accessoire?: Date | null;
-  wishlist?: any; // Pour garder l'accès au JSON brut lors des updates
+  wishlist?: any;
 }
 
 const Admin: React.FC = () => {
@@ -74,24 +74,28 @@ const Admin: React.FC = () => {
   const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null);
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
 
-  // --- CHARGEMENT OPTIMISÉ (LOGIQUE DICTIONNAIRE) ---
+  // --- CHARGEMENT OPTIMISÉ ---
   const loadData = async () => {
     try {
       setLoading(true);
-      // On récupère TOUT en parallèle pour gagner du temps
-      const [armesRes, armuresRes, accRes, rolesRes, playersRes] = await Promise.all([
+      // AJOUT : On récupère aussi la table "boss"
+      const [armesRes, armuresRes, accRes, rolesRes, playersRes, bossRes] = await Promise.all([
         getArmes(),
         getArmures(),
         getAccessoires(),
         supabase.from('role').select('*'),
-        getPlayers()
+        getPlayers(),
+        supabase.from('boss').select('*') // Récupération des boss
       ]);
 
-      // On crée des Maps (indexation par ID) pour éviter de boucler 1000 fois
+      // Dictionnaires
       const weaponsMap = new Map(armesRes.data?.map(i => [i.id.toString(), i]));
       const armorsMap = new Map(armuresRes.data?.map(i => [i.id.toString(), i]));
       const accMap = new Map(accRes.data?.map(i => [i.id.toString(), i]));
       const rolesMap = new Map(rolesRes.data?.map(r => [r.id.toString(), r]));
+      
+      // AJOUT : Dictionnaire des boss (id -> nom JSONB {fr, en})
+      const bossesMap = new Map(bossRes.data?.map(b => [b.id.toString(), b.name]));
 
       setItems({ 
         armes: armesRes.data || [], 
@@ -103,23 +107,28 @@ const Admin: React.FC = () => {
         const enriched = playersRes.data.map((p: any) => {
           const wl = p.wishlist || {};
 
-          // Vérification auto des 7 jours pour le reset du loot date
           if (wl.date_last_looted_item && (new Date().getTime() - new Date(wl.date_last_looted_item).getTime()) / 86400000 > 7) {
-            resetLastLootDate(p.id); // On ne met pas await pour ne pas bloquer l'affichage
+            resetLastLootDate(p.id);
             wl.date_last_looted_item = null;
           }
 
-          // On pioche les infos dans nos Maps
           const wData = weaponsMap.get(wl.id_arme?.toString());
           const aData = armorsMap.get(wl.id_armure?.toString());
           const acData = accMap.get(wl.id_accessoire?.toString());
           const rData = rolesMap.get(p.role?.toString());
 
+          // AJOUT : Fonction pour extraire le nom du boss depuis idBoss
+          const getBossArray = (itemData: any) => {
+            if (!itemData || !itemData.idBoss) return [];
+            const bossName = bossesMap.get(itemData.idBoss.toString());
+            return bossName ? [bossName] : []; // On renvoie sous forme de tableau
+          };
+
           return {
             ...p,
             name: p.discord_name,
             isPresent: false,
-            wishlist: wl, // On stocke pour les updates futurs
+            wishlist: wl,
 
             idArme: wl.id_arme,
             idArmure: wl.id_armure,
@@ -136,9 +145,11 @@ const Admin: React.FC = () => {
             armeName: wData?.name || null,
             armureName: aData?.name || null,
             accessoireName: acData?.name || null,
-            armeBoss: wData?.boss_names || [], 
-            armureBoss: aData?.boss_names || [],
-            accessoireBoss: acData?.boss_names || [],
+            
+            // On utilise notre nouvelle fonction
+            armeBoss: getBossArray(wData), 
+            armureBoss: getBossArray(aData),
+            accessoireBoss: getBossArray(acData),
             
             idRole: p.role,
             roleName: rData?.name || null,
@@ -190,7 +201,6 @@ const Admin: React.FC = () => {
     return { armes: sort(c.armes), armures: sort(c.armures), accessoires: sort(c.accessoires) };
   }, [players, lang]);
 
-  // --- ACTIONS ---
   const confirmBlock = async () => {
     if (!target) return;
     try {
@@ -201,7 +211,6 @@ const Admin: React.FC = () => {
     setModalOpen(false);
   };
 
-  // Protection
   if (!user) return <Navigate to="/login" replace />;
 
   return (
