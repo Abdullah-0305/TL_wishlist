@@ -1,5 +1,5 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { UserCog, MoreVertical, Calendar, ShieldCheck, UserX} from "lucide-react";
+import { UserCog, MoreVertical, Calendar, ShieldCheck, UserX, ShieldMinus} from "lucide-react";
 import ItemRow from "./ItemRow";
 import { useState, useRef, useEffect } from "react";
 import DeletePlayerModal from "./DeletePlayerModal.tsx";
@@ -70,19 +70,29 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
             ref={menuRef}
             className="absolute right-2 top-11 bg-[#1e1333] shadow-[0_10px_40px_rgba(0,0,0,0.5)] rounded-xl border border-fuchsia-500/20 z-30 w-56 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
           >
-            {/* --- BOUTON ÉLÉVATION (OR) --- */}
+            {/* --- BOUTON ÉLÉVATION / RÉTROGRADATION --- */}
             <button
               onClick={() => {
                 setMenuOpen(false);
                 setAdminModalOpen(true);
               }}
-              disabled={player.is_admin === true}
-              className="w-full flex items-center justify-between px-4 py-3 text-[11px] text-gaming-gold hover:bg-gaming-gold/10 transition-all duration-200 group/btn font-black uppercase tracking-widest border-b border-white/5"
+              className={cn(
+                "w-full flex items-center justify-between px-4 py-3 text-[11px] transition-all duration-200 group/btn font-black uppercase tracking-widest border-b border-white/5",
+                player.is_admin 
+                  ? "text-orange-400 hover:bg-orange-500/10" 
+                  : "text-gaming-gold hover:bg-gaming-gold/10"
+              )}
             >
               <span className="group-hover:translate-x-1 transition-transform">
-                {t("player_card.elevate_player")}
+                {player.is_admin 
+                  ? t("player_card.demote_player", "Retirer Admin") 
+                  : t("player_card.elevate_player", "Nommer Admin")}
               </span>
-              <ShieldCheck className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+              {player.is_admin ? (
+                <ShieldMinus className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+              ) : (
+                <ShieldCheck className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+              )}
             </button>
 
             {/* --- BOUTON SUPPRESSION (ROUGE) --- */}
@@ -94,7 +104,7 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
               className="w-full flex items-center justify-between px-4 py-3 text-[11px] text-red-400 hover:bg-red-500/10 transition-all duration-200 group/del font-black uppercase tracking-widest"
             >
               <span className="group-hover:translate-x-1 transition-transform">
-                {t("player_card.delete_player")}
+                {t("player_card.delete_player", "Supprimer Joueur")}
               </span>
               <UserX className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" />
             </button>
@@ -123,9 +133,20 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
                   </div>
                 </div>
 
-                <CardTitle className="text-xl font-extrabold text-white tracking-tight drop-shadow-md">
-                  {player.name}
-                </CardTitle>
+                {/* --- INFOS DU JOUEUR (NOM + PASTILLE CO-GESTION) --- */}
+                <div className="flex flex-col">
+                  <CardTitle className="text-xl font-extrabold text-white tracking-tight drop-shadow-md">
+                    {player.name}
+                  </CardTitle>
+                  
+                  {/* PASTILLE CO-GESTION */}
+                  {player.is_admin && (
+                    <span className="flex items-center gap-1 w-fit mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest bg-gaming-gold/10 text-gaming-gold border border-gaming-gold/40 shadow-[0_0_10px_rgba(251,191,36,0.2)]">
+                      <ShieldCheck className="h-2.5 w-2.5" />
+                      Co-Gestion
+                    </span>
+                  )}
+                </div>
               </div>
 
               <label className="flex items-center gap-2 cursor-pointer group/pres">
@@ -133,7 +154,7 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
                   "text-[10px] uppercase font-black tracking-widest transition-colors",
                   player.isPresent ? "text-gaming-gold" : "text-fuchsia-400/50"
                 )}>
-                  {t("player_card.present")}
+                  {t("player_card.present", "Présent")}
                 </span>
                 <input
                   type="checkbox"
@@ -147,13 +168,12 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
             <div className="h-[2px] w-full bg-gradient-to-r from-fuchsia-500 via-purple-500 to-gaming-gold opacity-50" />
             
             <CardDescription className="text-[11px] uppercase tracking-[0.2em] font-black text-fuchsia-300">
-              {t("player_card.choices")}
+              {t("player_card.choices", "Wishlist")}
             </CardDescription>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-4 relative">
-          {/* On passe les dates de demande spécifiques à chaque ligne d'objet */}
           <ItemRow 
             type="arme" 
             player={player} 
