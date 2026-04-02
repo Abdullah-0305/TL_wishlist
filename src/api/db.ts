@@ -198,3 +198,76 @@ export async function getLootHistory(limit = 100) {
   
   return data;
 }
+
+// ---------------------------------------------
+// GESTION DES DEMANDES DE CHANGEMENT (WISHLIST)
+// ---------------------------------------------
+
+// 1. Le joueur crée une demande
+export async function createChangeRequest(data: { player_id: string; item_type: string; new_item_id: string | number }) {
+  const { error } = await supabase
+    .from("change_requests")
+    .insert([{ ...data, status: "pending" }]);
+    
+  if (error) throw error;
+  return true;
+}
+
+// 2. L'Admin récupère les demandes en attente
+export async function getPendingChangeRequests() {
+  const { data, error } = await supabase
+    .from("change_requests")
+    .select(`
+      id,
+      player_id,
+      item_type,
+      new_item_id,
+      created_at,
+      player:players!player_id (discord_name, avatar_url, wishlist)
+    `)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true }); // Les plus anciennes en premier
+
+  if (error) throw error;
+  return data;
+}
+
+// 3. L'Admin valide ou refuse la demande
+export async function resolveChangeRequest(
+  requestId: string,
+  status: "approved" | "rejected",
+  playerId?: string,
+  itemType?: string,
+  newItemId?: string | number
+) {
+  // A. On change le statut de la requête
+  const { error: reqError } = await supabase
+    .from("change_requests")
+    .update({ status })
+    .eq("id", requestId);
+
+  if (reqError) throw reqError;
+
+  // B. Si c'est approuvé, on met à jour la wishlist du joueur !
+  if (status === "approved" && playerId && itemType && newItemId) {
+    const { data: player } = await getPlayerById(playerId);
+    const wishlist = player?.wishlist || {};
+
+    // On remplace l'ancien item par le nouveau et on reset la date de demande
+    if (itemType === "arme") {
+      wishlist.id_arme = isNaN(Number(newItemId)) ? newItemId : Number(newItemId);
+      wishlist.date_demand_arme = new Date();
+    } else if (itemType === "armure") {
+      wishlist.id_armure = isNaN(Number(newItemId)) ? newItemId : Number(newItemId);
+      wishlist.date_demand_armure = new Date();
+    } else if (itemType === "accessoire") {
+      wishlist.id_accessoire = isNaN(Number(newItemId)) ? newItemId : Number(newItemId);
+      wishlist.date_demand_accessoire = new Date();
+    }
+
+    const { error: playerError } = await updatePlayer(playerId, { wishlist });
+    if (playerError) throw playerError;
+  }
+
+  return true;
+}

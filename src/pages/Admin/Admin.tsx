@@ -15,6 +15,7 @@ import RemoveModal, { RemoveTarget } from "./components/RemoveModal";
 import UnlockAllModal from "./components/UnlockAllModal";
 import { Button } from "@/components/ui/button";
 import HistoryModal from "./components/HistoryModal";
+import ChangeRequestsModal from "./components/ChangeRequestModal";
 
 import {
   getPlayers,
@@ -24,7 +25,8 @@ import {
   getArmures,
   getAccessoires,
   getPlayerById,
-  resetLastLootDate
+  resetLastLootDate,
+  getPendingChangeRequests
 } from "@/api/db";
 
 // --- INTERFACES ---
@@ -74,20 +76,23 @@ const Admin: React.FC = () => {
   const [removeModalOpen, setRemoveModalOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null);
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
-  const [historyModalOpen, setHistoryModalOpen] = useState(false)
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [requestsModalOpen, setRequestsModalOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   // --- CHARGEMENT OPTIMISÉ ---
   const loadData = async () => {
     try {
       setLoading(true);
       // AJOUT : On récupère aussi la table "boss"
-      const [armesRes, armuresRes, accRes, rolesRes, playersRes, bossRes] = await Promise.all([
+      const [armesRes, armuresRes, accRes, rolesRes, playersRes, bossRes, requestsRes] = await Promise.all([
         getArmes(),
         getArmures(),
         getAccessoires(),
         supabase.from('role').select('*'),
         getPlayers(),
-        supabase.from('boss').select('*') // Récupération des boss
+        supabase.from('boss').select('*'),
+        getPendingChangeRequests()
       ]);
 
       // Dictionnaires
@@ -161,6 +166,7 @@ const Admin: React.FC = () => {
         
         setPlayers(enriched);
         setFilteredPlayers(enriched);
+        setPendingCount(requestsRes?.length || 0);
       }
     } catch (err) { 
       console.error(err);
@@ -219,7 +225,7 @@ const Admin: React.FC = () => {
     <div className="min-h-screen bg-[#0a0b10] bg-[radial-gradient(ellipse_at_top,_rgba(88,28,135,0.15)_0%,_rgba(10,11,16,1)_80%)] text-zinc-100 pb-20">
       <div className="max-w-7xl mx-auto space-y-6 p-4 md:p-10 animate-in fade-in duration-500">
         
-        <Header onUnlockAll={() => setUnlockModalOpen(true)} onOpenHistory={() => setHistoryModalOpen(true)}/>
+        <Header onUnlockAll={() => setUnlockModalOpen(true)} onOpenHistory={() => setHistoryModalOpen(true)} onOpenChangeRequest={() => setRequestsModalOpen(true)} requestCount={pendingCount}/>
         
         <BossCounts 
           bossCounts={bossCounts} 
@@ -337,6 +343,12 @@ const Admin: React.FC = () => {
       <HistoryModal 
         open={historyModalOpen} 
         onOpenChange={setHistoryModalOpen} 
+      />
+
+      <ChangeRequestsModal 
+        open={requestsModalOpen} 
+        onOpenChange={setRequestsModalOpen} 
+        onDataChanged={loadData} // Va recharger la liste des joueurs si tu valides un échange !
       />
     </div>
   );

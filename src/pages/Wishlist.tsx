@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Swords, Shield as ShieldIcon, Gem, Save, Info, Lock, CheckCircle2 } from "lucide-react";
+import { Swords, Shield as ShieldIcon, Gem, Save, Info, Lock, CheckCircle2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { getArmes, getArmures, getAccessoires, getRoles, updatePlayer, getPlayerById } from "@/api/db";
+import { getArmes, getArmures, getAccessoires, getRoles, updatePlayer, getPlayerById , createChangeRequest} from "@/api/db";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useTranslation, Trans } from "react-i18next";
@@ -40,6 +40,11 @@ const Wishlist = () => {
   const [hasLootedAccessoire, setHasLootedAccessoire] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
+
+  // --- NOUVEAUX STATES POUR LA DEMANDE DE CHANGEMENT ---
+  const [changeModalOpen, setChangeModalOpen] = useState(false);
+  const [changeSlotType, setChangeSlotType] = useState<"arme" | "armure" | "accessoire" | null>(null);
+  const [changeNewItem, setChangeNewItem] = useState<string>("");
 
   const getLocalizedName = (nameObj: any) => {
     if (!nameObj) return "???";
@@ -131,6 +136,44 @@ const Wishlist = () => {
     }
   };
 
+  // --- LOGIQUE DEMANDE DE CHANGEMENT ---
+  const handleOpenChangeRequest = (type: "arme" | "armure" | "accessoire") => {
+    setChangeSlotType(type);
+    setChangeNewItem("");
+    setChangeModalOpen(true);
+  };
+
+  const submitChangeRequest = async () => {
+    if (!changeNewItem || changeNewItem === "null") {
+      toast.error(t("wishlist.change_select_error", "Veuillez sélectionner un nouvel item."));
+      return;
+    }
+
+    try {
+      if (!user?.id || !changeSlotType) return;
+      
+      // Appel API réel !
+      await createChangeRequest({ 
+        player_id: user.id, 
+        item_type: changeSlotType, 
+        new_item_id: changeNewItem 
+      });
+      
+      toast.success(t("wishlist.change_request_sent", "Votre demande de changement a été envoyée à la Co-Gestion !"));
+      setChangeModalOpen(false);
+    } catch (err) {
+      toast.error(t("wishlist.change_request_error", "Erreur lors de l'envoi de la demande. Vous avez peut-être déjà une demande en cours."));
+    }
+  };
+
+  // Helper pour trouver les bons items pour le modal de changement
+  const getChangeItemsList = () => {
+    if (changeSlotType === "arme") return weapons;
+    if (changeSlotType === "armure") return armors;
+    if (changeSlotType === "accessoire") return accessories;
+    return [];
+  };
+
   if (authLoading) return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="w-12 h-12 border-4 border-fuchsia-500/20 border-t-fuchsia-500 rounded-full animate-spin" />
@@ -148,7 +191,7 @@ const Wishlist = () => {
   return (
     <div className="max-w-5xl mx-auto space-y-10 pb-20 animate-in fade-in duration-700">
       
-      {/* 📜 RÈGLES DE GUILDE */}
+      {/* 📜 RÈGLES DE GUILDE (Inchangé) */}
       <section className="relative overflow-hidden bg-[#1e1333]/40 backdrop-blur-md border border-fuchsia-500/20 rounded-3xl shadow-2xl">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-fuchsia-600 via-purple-500 to-gaming-gold" />
         <div className="p-6 md:p-8">
@@ -250,7 +293,7 @@ const Wishlist = () => {
               <div className={cn("p-3 rounded-xl bg-white/5 border border-white/5", slot.color)}>
                 <slot.icon className="h-6 w-6" />
               </div>
-              {slot.locked && <Lock className="h-4 w-4 text-zinc-500" />}
+              {slot.locked && !slot.looted && <Lock className="h-4 w-4 text-zinc-500" />}
               {slot.looted && <CheckCircle2 className="h-5 w-5 text-purple-400 animate-pulse" />}
             </div>
 
@@ -273,7 +316,25 @@ const Wishlist = () => {
               </SelectContent>
             </Select>
 
-            {slot.locked && !slot.looted && <p className="text-[10px] text-red-400/70 mt-3 font-bold uppercase tracking-tighter">{t("wishlist.already_chosen")}</p>}
+            {/* MESSAGE / BOUTON SI VERROUILLÉ */}
+            {slot.locked && !slot.looted && (
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-[10px] text-red-400/70 font-bold uppercase tracking-tighter">
+                  {t("wishlist.already_chosen")}
+                </p>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 px-2 text-[9px] uppercase tracking-widest text-gaming-gold border border-gaming-gold/30 hover:bg-gaming-gold/10 transition-all"
+                  onClick={() => handleOpenChangeRequest(slot.id as any)}
+                >
+                  <RefreshCw className="h-3 w-3 mr-1.5" />
+                  {t("wishlist.request_change_btn", "Changer ?")}
+                </Button>
+              </div>
+            )}
+            
+            {/* SI LOOTÉ */}
             {slot.looted && (
               <div className="mt-4 p-2 bg-purple-500/10 border border-purple-500/20 rounded-lg text-center">
                 <span className="text-[10px] font-black uppercase text-purple-400 tracking-tighter">
@@ -285,19 +346,19 @@ const Wishlist = () => {
         ))}
       </div>
 
-      {/* BOUTON SAUVEGARDE */}
+      {/* BOUTON SAUVEGARDE PRINCIPAL */}
       <div className="flex flex-col items-center gap-4">
         <Button 
           onClick={handleSave}
           disabled={weaponLocked && armorLocked && accessoryLocked}
-          className="group relative bg-gradient-to-r from-fuchsia-600 to-purple-700 hover:from-fuchsia-500 hover:to-purple-600 text-white font-black px-12 py-7 h-auto rounded-2xl shadow-2xl shadow-fuchsia-900/40 border-b-4 border-fuchsia-900/60 transition-all active:translate-y-1 active:border-b-0 uppercase tracking-widest text-sm"
+          className="group relative bg-gradient-to-r from-fuchsia-600 to-purple-700 hover:from-fuchsia-500 hover:to-purple-600 text-white font-black px-12 py-7 h-auto rounded-2xl shadow-2xl shadow-fuchsia-900/40 border-b-4 border-fuchsia-900/60 transition-all active:translate-y-1 active:border-b-0 uppercase tracking-widest text-sm disabled:opacity-50 disabled:grayscale"
         >
           <Save className="mr-3 h-5 w-5 group-hover:rotate-12 transition-transform" />
           {t("wishlist.save")}
         </Button>
       </div>
 
-      {/* MODAL DE CONFIRMATION */}
+      {/* MODAL DE SAUVEGARDE (Inchangé) */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="bg-[#1e1333] border-fuchsia-500/30 shadow-2xl max-w-sm mx-auto p-0 overflow-hidden border-t-0">
           <div className="w-full h-1.5 bg-gradient-to-r from-fuchsia-600 via-purple-500 to-gaming-gold" />
@@ -317,6 +378,54 @@ const Wishlist = () => {
               </Button>
               <Button className="flex-1 bg-gaming-gold text-black font-black uppercase tracking-widest text-xs shadow-glow-gold hover:bg-white transition-all" onClick={confirmSave}>
                 {t("wishlist.confirm")}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE DEMANDE DE CHANGEMENT */}
+      <Dialog open={changeModalOpen} onOpenChange={setChangeModalOpen}>
+        <DialogContent className="bg-[#1e1333] border-gaming-gold/30 shadow-2xl max-w-md mx-auto p-0 overflow-hidden border-t-0">
+          <div className="w-full h-1.5 bg-gradient-to-r from-gaming-gold via-amber-500 to-orange-500" />
+          <div className="p-8 flex flex-col items-center text-center">
+            
+            <div className="w-16 h-16 rounded-2xl bg-gaming-gold/10 border border-gaming-gold/30 flex items-center justify-center text-gaming-gold mb-6 shadow-glow-gold">
+              <RefreshCw className="h-8 w-8" />
+            </div>
+            
+            <DialogTitle className="text-xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-gaming-gold mb-2">
+              {t("wishlist.change_request_title", "Demande d'échange")}
+            </DialogTitle>
+            
+            <DialogDescription className="text-fuchsia-100/70 text-sm leading-relaxed mb-6">
+              {t("wishlist.change_request_desc", "Sélectionnez l'objet que vous souhaitez en remplacement. La Co-Gestion validera votre demande.")}
+            </DialogDescription>
+
+            <div className="w-full mb-8 text-left">
+              <label className="text-[10px] font-black uppercase tracking-widest text-fuchsia-300/50 mb-2 block">
+                {t("wishlist.new_item_label", "Nouvel objet souhaité :")}
+              </label>
+              <Select value={changeNewItem} onValueChange={setChangeNewItem}>
+                <SelectTrigger className="bg-black/50 border-gaming-gold/30 text-white h-12 rounded-xl focus:ring-gaming-gold">
+                  <SelectValue placeholder={t("wishlist.select_new_item", "Choisir...")} />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1e1333] border-gaming-gold/30 text-white max-h-[250px]">
+                  {getChangeItemsList().map((item) => (
+                    <SelectItem key={item.id} value={item.id.toString()} className="focus:bg-gaming-gold/20 cursor-pointer">
+                      {getLocalizedName(item.name)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-3 w-full">
+              <Button variant="ghost" className="flex-1 text-fuchsia-300/50 font-bold uppercase tracking-widest text-xs hover:text-white" onClick={() => setChangeModalOpen(false)}>
+                {t("wishlist.cancel")}
+              </Button>
+              <Button className="flex-1 bg-gradient-to-r from-gaming-gold to-orange-500 text-black font-black uppercase tracking-widest text-xs hover:from-white hover:to-white transition-all shadow-glow-gold" onClick={submitChangeRequest}>
+                {t("wishlist.send_request", "Envoyer")}
               </Button>
             </div>
           </div>
