@@ -14,6 +14,7 @@ import BlockModal, { BlockTarget } from "./components/BlockModal";
 import RemoveModal, { RemoveTarget } from "./components/RemoveModal";
 import UnlockAllModal from "./components/UnlockAllModal";
 import { Button } from "@/components/ui/button";
+import HistoryModal from "./components/HistoryModal";
 
 import {
   getPlayers,
@@ -73,6 +74,7 @@ const Admin: React.FC = () => {
   const [removeModalOpen, setRemoveModalOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null);
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false)
 
   // --- CHARGEMENT OPTIMISÉ ---
   const loadData = async () => {
@@ -217,7 +219,7 @@ const Admin: React.FC = () => {
     <div className="min-h-screen bg-[#0a0b10] bg-[radial-gradient(ellipse_at_top,_rgba(88,28,135,0.15)_0%,_rgba(10,11,16,1)_80%)] text-zinc-100 pb-20">
       <div className="max-w-7xl mx-auto space-y-6 p-4 md:p-10 animate-in fade-in duration-500">
         
-        <Header onUnlockAll={() => setUnlockModalOpen(true)} />
+        <Header onUnlockAll={() => setUnlockModalOpen(true)} onOpenHistory={() => setHistoryModalOpen(true)}/>
         
         <BossCounts 
           bossCounts={bossCounts} 
@@ -330,6 +332,11 @@ const Admin: React.FC = () => {
           } catch { toast.error(t("admin.action_error")); }
           setUnlockModalOpen(false);
         }} 
+      />
+
+      <HistoryModal 
+        open={historyModalOpen} 
+        onOpenChange={setHistoryModalOpen} 
       />
     </div>
   );

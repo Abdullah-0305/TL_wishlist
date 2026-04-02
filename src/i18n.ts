@@ -159,7 +159,8 @@ i18n
             "admin_header": {
                 "title": "Administration",
                 "subtitle": "Gérez les wishlists et la distribution des loots",
-                "reset_all": "Réinitialiser toute la base"
+                "reset_all": "Réinitialiser toute la base",
+                "history": "Historique des loots"
             },
             "player_grid": {
                 "no_players": "Aucun membre trouvé",
@@ -342,7 +343,8 @@ i18n
             "admin_header": {
                 "title": "Administration",
                 "subtitle": "Manage wishlists and loot distribution",
-                "reset_all": "Reset all database"
+                "reset_all": "Reset all database",
+                "history": "Loot History"
             },
             "player_grid": {
                 "no_players": "No members found",

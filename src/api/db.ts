@@ -172,3 +172,29 @@ export async function addLootToHistory(data: {
 }) {
   return await supabase.from("loot_history").insert([data]);
 }
+
+// Récupérer l'historique complet avec les pseudos
+// Récupérer l'historique complet avec les pseudos
+// Récupérer l'historique complet avec les pseudos
+export async function getLootHistory(limit = 100) {
+  const { data, error } = await supabase
+    .from("loot_history")
+    .select(`
+      id,
+      created_at,
+      item_name_fr,
+      item_name_en,
+      item_type,
+      player:players!fk_loot_player(discord_name, avatar_url),
+      admin:players!fk_loot_admin(discord_name)
+    `)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("Erreur récupération historique:", error);
+    return [];
+  }
+  
+  return data;
+}
