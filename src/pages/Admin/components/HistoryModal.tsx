@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog"; // Import shadcn corrigé
 import { getLootHistory } from "@/api/db";
 import { useTranslation } from "react-i18next";
-import { History, Swords, Shield, Gem, UserCircle, Calendar } from "lucide-react";
+import { ScrollText, Swords, Shield, Gem, UserCircle, Calendar } from "lucide-react";
 
 interface HistoryModalProps {
   open: boolean;
@@ -53,9 +53,9 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ open, onOpenChange }) => {
   const getIcon = (type: string) => {
     switch (type) {
       case "arme": return <Swords className="h-5 w-5 text-amber-400" />;
-      case "armure": return <Shield className="h-5 w-5 text-purple-400" />;
+      case "armure": return <Shield className="h-5 w-5 text-blue-400" />;
       case "accessoire": return <Gem className="h-5 w-5 text-fuchsia-400" />;
-      default: return <History className="h-5 w-5 text-zinc-400" />;
+      default: return <ScrollText className="h-5 w-5 text-zinc-400" />;
     }
   };
 
@@ -76,7 +76,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ open, onOpenChange }) => {
         <DialogHeader className="p-6 pb-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-fuchsia-500/10 rounded-lg border border-fuchsia-500/30">
-              <History className="h-5 w-5 text-fuchsia-500" />
+              <ScrollText className="h-5 w-5 text-fuchsia-500" />
             </div>
             <div className="text-left">
               <DialogTitle className="text-xl font-black uppercase tracking-tighter text-white">

@@ -34,7 +34,7 @@ const BossCounts: React.FC<BossCountsProps> = ({
     { 
       label: t("boss_counts.armors"), 
       data: bossCounts.armures, 
-      color: "text-purple-400", 
+      color: "text-blue-400", 
       icon: <Shield className="h-4 w-4" />,
       glow: "group-hover:shadow-[0_0_15px_rgba(168,85,247,0.3)]"
     },

@@ -8,9 +8,9 @@ const ItemRow = ({ type, player, dateDemand, openModal, openRemoveModal }) => {
   const lang = i18n.language as "fr" | "en";
 
   const icons = {
-    arme: <Swords className="h-4 w-4 text-primary" />,
-    armure: <Shield className="h-4 w-4 text-primary" />,
-    accessoire: <Gem className="h-4 w-4 text-primary" />
+    arme: <Swords className="h-4 w-4 text-amber-400" />,
+    armure: <Shield className="h-4 w-4 text-blue-400" />,
+    accessoire: <Gem className="h-4 w-4 text-fuchsia-400" />
   };
 
   // --- LOGIQUE JSONB POUR LE NOM ---

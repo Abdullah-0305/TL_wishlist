@@ -239,7 +239,7 @@ const Wishlist = () => {
         {/* SLOTS D'ÉQUIPEMENT */}
         {[
           { id: 'arme', title: t("wishlist.weapons_title"), icon: Swords, color: 'text-amber-400', items: weapons, locked: weaponLocked, selected: selectedWeapon, setter: setSelectedWeapon, looted: hasLootedArme, placeholder: t("wishlist.select_weapon") },
-          { id: 'armure', title: t("wishlist.armors_title"), icon: ShieldIcon, color: 'text-fuchsia-400', items: armors, locked: armorLocked, selected: selectedArmor, setter: setSelectedArmor, looted: hasLootedArmure, placeholder: t("wishlist.select_armor") },
+          { id: 'armure', title: t("wishlist.armors_title"), icon: ShieldIcon, color: 'text-blue-400', items: armors, locked: armorLocked, selected: selectedArmor, setter: setSelectedArmor, looted: hasLootedArmure, placeholder: t("wishlist.select_armor") },
           { id: 'accessoire', title: t("wishlist.accessories_title"), icon: Gem, color: 'text-purple-400', items: accessories, locked: accessoryLocked, selected: selectedAccessory, setter: setSelectedAccessory, looted: hasLootedAccessoire, placeholder: t("wishlist.select_accessory") }
         ].map((slot) => (
           <div key={slot.id} className={cn(

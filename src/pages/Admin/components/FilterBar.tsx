@@ -23,25 +23,25 @@ const FilterBar = ({
       items: armes, 
       color: "text-amber-400", 
       border: "border-amber-500/30",
-      itemStyle: "text-amber-100/90 hover:text-amber-300 hover:border-amber-500/40 bg-amber-500/5"
+      itemStyle: "text-white-100/90 hover:text-amber-300 hover:border-amber-500/40 bg-amber-500/5"
     },
     { 
       id: "armure", 
       label: t("filter.armors"), 
       icon: <Shield className="h-4 w-4" />, 
       items: armures, 
-      color: "text-fuchsia-400", 
-      border: "border-fuchsia-500/30",
-      itemStyle: "text-fuchsia-100/90 hover:text-fuchsia-300 hover:border-fuchsia-500/40 bg-fuchsia-500/5"
+      color: "text-blue-400", 
+      border: "border-blue-500/30",
+      itemStyle: "text-white-100/90 hover:text-blue-300 hover:border-blue-500/40 bg-blue-500/5"
     },
     { 
       id: "accessoire", 
       label: t("filter.accessories"), 
       icon: <Gem className="h-4 w-4" />, 
       items: accessoires, 
-      color: "text-purple-400", 
-      border: "border-purple-500/30",
-      itemStyle: "text-purple-100/90 hover:text-purple-300 hover:border-purple-500/40 bg-purple-500/5"
+      color: "text-fuchsia-400", 
+      border: "border-fuchsia-500/30",
+      itemStyle: "text-white-100/90 hover:text-fuchsia-300 hover:border-fuchsia-500/40 bg-fuchsia-500/5"
     },
   ];
 

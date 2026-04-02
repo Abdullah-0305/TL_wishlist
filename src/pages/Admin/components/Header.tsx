@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, History} from "lucide-react";
+import { ShieldAlert, ScrollText} from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const Header = ({ onUnlockAll, onOpenHistory }) => {
@@ -40,7 +40,7 @@ const Header = ({ onUnlockAll, onOpenHistory }) => {
         {/* Lueur violet au survol uniquement */}
         <div className="absolute inset-0 bg-fuchsia-500/30 bg-fuchsia-500/5 text-fuchsia-500 hover:bg-fuchsia-600 hover:text-white transition-all opacity-0 group-hover:opacity-100" />
         
-        <History className="h-4 w-4 transition-transform group-hover:scale-110 relative z-10" />
+        <ScrollText className="h-4 w-4 transition-transform group-hover:scale-110 relative z-10" />
         <span className="relative z-10">{t("admin_header.history")}</span>
       </Button>
     </div>
