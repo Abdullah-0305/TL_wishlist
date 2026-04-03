@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslation } from "react-i18next";
-import { Users, RotateCcw } from "lucide-react";
+import { Users, RotateCcw, Mic, ScrollText, RefreshCw, Swords } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 import Header from "./components/Header";
@@ -14,19 +14,14 @@ import BlockModal, { BlockTarget } from "./components/BlockModal";
 import RemoveModal, { RemoveTarget } from "./components/RemoveModal";
 import UnlockAllModal from "./components/UnlockAllModal";
 import { Button } from "@/components/ui/button";
-import HistoryModal from "./components/HistoryModal";
-import ChangeRequestsModal from "./components/ChangeRequestModal";
+
+// Nouveaux imports des onglets
+import HistoryTab from "./components/HistoryTab"; 
+import ChangeRequestsTab from "./components/ChangeRequestsTab"; 
 
 import {
-  getPlayers,
-  setPlayerHasLooted,
-  updatePlayer,
-  getArmes,
-  getArmures,
-  getAccessoires,
-  getPlayerById,
-  resetLastLootDate,
-  getPendingChangeRequests
+  getPlayers, setPlayerHasLooted, updatePlayer, getArmes, getArmures,
+  getAccessoires, getPlayerById, resetLastLootDate, getPendingChangeRequests
 } from "@/api/db";
 
 // --- INTERFACES ---
@@ -70,21 +65,21 @@ const Admin: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<string>("");
   const [selectedBoss, setSelectedBoss] = useState<string | null>(null);
 
-  // Modals
+  // --- NAVIGATION (Onglets) ---
+  const [activeTab, setActiveTab] = useState<"raid" | "requests" | "history">("raid");
+
+  // Modals de confirmation
   const [modalOpen, setModalOpen] = useState(false);
   const [target, setTarget] = useState<BlockTarget | null>(null);
   const [removeModalOpen, setRemoveModalOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null);
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
-  const [historyModalOpen, setHistoryModalOpen] = useState(false);
-  const [requestsModalOpen, setRequestsModalOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
   // --- CHARGEMENT OPTIMISÉ ---
   const loadData = async () => {
     try {
       setLoading(true);
-      // AJOUT : On récupère aussi la table "boss"
       const [armesRes, armuresRes, accRes, rolesRes, playersRes, bossRes, requestsRes] = await Promise.all([
         getArmes(),
         getArmures(),
@@ -95,13 +90,10 @@ const Admin: React.FC = () => {
         getPendingChangeRequests()
       ]);
 
-      // Dictionnaires
       const weaponsMap = new Map(armesRes.data?.map(i => [i.id.toString(), i]));
       const armorsMap = new Map(armuresRes.data?.map(i => [i.id.toString(), i]));
       const accMap = new Map(accRes.data?.map(i => [i.id.toString(), i]));
       const rolesMap = new Map(rolesRes.data?.map(r => [r.id.toString(), r]));
-      
-      // AJOUT : Dictionnaire des boss (id -> nom JSONB {fr, en})
       const bossesMap = new Map(bossRes.data?.map(b => [b.id.toString(), b.name]));
 
       setItems({ 
@@ -124,11 +116,10 @@ const Admin: React.FC = () => {
           const acData = accMap.get(wl.id_accessoire?.toString());
           const rData = rolesMap.get(p.role?.toString());
 
-          // AJOUT : Fonction pour extraire le nom du boss depuis idBoss
           const getBossArray = (itemData: any) => {
             if (!itemData || !itemData.idBoss) return [];
             const bossName = bossesMap.get(itemData.idBoss.toString());
-            return bossName ? [bossName] : []; // On renvoie sous forme de tableau
+            return bossName ? [bossName] : []; 
           };
 
           return {
@@ -136,28 +127,22 @@ const Admin: React.FC = () => {
             name: p.discord_name,
             isPresent: false,
             wishlist: wl,
-
             idArme: wl.id_arme,
             idArmure: wl.id_armure,
             idAccesoires: wl.id_accessoire,
             has_looted_arme: wl.has_looted_arme || false,
             has_looted_armure: wl.has_looted_armure || false,
             has_looted_accessoires: wl.has_looted_accessoires || false,
-            
             date_last_looted_item: wl.date_last_looted_item ? new Date(wl.date_last_looted_item) : null,
             date_demand_arme: wl.date_demand_arme ? new Date(wl.date_demand_arme) : null,
             date_demand_armure: wl.date_demand_armure ? new Date(wl.date_demand_armure) : null,
             date_demand_accessoire: wl.date_demand_accessoire ? new Date(wl.date_demand_accessoire) : null,
-
             armeName: wData?.name || null,
             armureName: aData?.name || null,
             accessoireName: acData?.name || null,
-            
-            // On utilise notre nouvelle fonction
             armeBoss: getBossArray(wData), 
             armureBoss: getBossArray(aData),
             accessoireBoss: getBossArray(acData),
-            
             idRole: p.role,
             roleName: rData?.name || null,
             roleColor: rData?.color || "#9CA3AF"
@@ -196,16 +181,12 @@ const Admin: React.FC = () => {
   // --- COMPTAGE BOSS ---
   const bossCounts = useMemo(() => {
     const c: Record<string, Record<string, number>> = { armes: {}, armures: {}, accessoires: {} };
-    
     players.filter(p => p.isPresent).forEach(p => {
       if (!p.has_looted_arme) p.armeBoss?.forEach(b => c.armes[b[lang]] = (c.armes[b[lang]] || 0) + 1);
       if (!p.has_looted_armure) p.armureBoss?.forEach(b => c.armures[b[lang]] = (c.armures[b[lang]] || 0) + 1);
       if (!p.has_looted_accessoires) p.accessoireBoss?.forEach(b => c.accessoires[b[lang]] = (c.accessoires[b[lang]] || 0) + 1);
     });
-
-    const sort = (obj: Record<string, number>): [string, number][] => 
-      Object.entries(obj).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-
+    const sort = (obj: Record<string, number>): [string, number][] => Object.entries(obj).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
     return { armes: sort(c.armes), armures: sort(c.armures), accessoires: sort(c.accessoires) };
   }, [players, lang]);
 
@@ -223,30 +204,18 @@ const Admin: React.FC = () => {
 
   const syncWithBot = async () => {
     const toastId = toast.loading("Interrogation du Bot...");
-
     try {
-      // 1. On va chercher les données ultra-fraîches dans Supabase
-      // (Pour être sûr d'avoir ce que le bot vient juste d'écrire)
-      const { data: dbPlayers, error } = await supabase
-        .from('players')
-        .select('id, is_online');
-
+      const { data: dbPlayers, error } = await supabase.from('players').select('id, is_online');
       if (error) throw error;
 
-      // 2. On coche les cases sur le site
       let matchCount = 0;
-      
       setPlayers((currentPlayers) => {
         return currentPlayers.map((player) => {
-          // On cherche le statut de ce joueur dans les données fraîches
           const freshData = dbPlayers.find(dbP => dbP.id === player.id);
-          
-          // Si le bot a dit qu'il est en ligne (true)
           if (freshData && freshData.is_online) {
             matchCount++;
-            return { ...player, isPresent: true }; // On le coche !
+            return { ...player, isPresent: true }; 
           }
-          
           return player;
         });
       });
@@ -256,7 +225,6 @@ const Admin: React.FC = () => {
       } else {
         toast.info("Le bot n'a détecté personne en vocal.", { id: toastId });
       }
-
     } catch (error) {
       console.error("Erreur Sync Bot:", error);
       toast.error("Erreur lors de la lecture de la base de données.", { id: toastId });
@@ -267,79 +235,138 @@ const Admin: React.FC = () => {
     <div className="min-h-screen bg-[#0a0b10] bg-[radial-gradient(ellipse_at_top,_rgba(88,28,135,0.15)_0%,_rgba(10,11,16,1)_80%)] text-zinc-100 pb-20">
       <div className="max-w-7xl mx-auto space-y-6 p-4 md:p-10 animate-in fade-in duration-500">
         
-      <Header 
-        onUnlockAll={() => setUnlockModalOpen(true)} 
-        onOpenHistory={() => setHistoryModalOpen(true)} 
-        onOpenChangeRequest={() => setRequestsModalOpen(true)} 
-        onAutoPresence={syncWithBot} // <-- ON BRANCHE LA NOUVELLE FONCTION ICI
-        requestCount={pendingCount}
-      />        
-        <BossCounts 
-          bossCounts={bossCounts} 
-          selectedBoss={selectedBoss} 
-          onBossClick={setSelectedBoss} 
-          onReset={() => setSelectedBoss(null)} 
-        />
+        <Header onUnlockAll={() => setUnlockModalOpen(true)} />        
 
-        <div className="space-y-4">
-          <FilterBar selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter} {...items} />
+{/* --- MENU DES ONGLETS --- */}
+        <div className="flex flex-wrap sm:flex-nowrap space-y-2 sm:space-y-0 sm:space-x-2 bg-[#1e1333]/60 p-1.5 rounded-xl border border-white/5 shadow-inner w-full md:w-fit mb-8">
+          
+          {/* ONGLET RAID (Fuchsia) */}
+          <Button
+            variant="ghost"
+            onClick={() => setActiveTab("raid")}
+            className={`flex-1 md:flex-none gap-2 px-6 h-10 transition-all border ${
+              activeTab === "raid" 
+                ? "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30 shadow-[0_0_15px_rgba(217,70,239,0.15)] hover:bg-fuchsia-500/25 hover:text-fuchsia-200" 
+                : "border-transparent text-zinc-400 hover:bg-fuchsia-500/10 hover:text-fuchsia-300"
+            }`}
+          >
+            <Swords className="h-4 w-4" /> Actif
+          </Button>
 
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-start gap-4">
-            <div className="grid grid-cols-2 lg:flex items-center gap-2 bg-[#1e1333]/60 p-1.5 rounded-xl border border-white/5 shadow-inner w-full lg:w-fit">
-              <Button 
-                variant="ghost" 
-                onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: false})))}
-                className="flex items-center justify-center gap-2 text-fuchsia-300/70 hover:text-white text-[10px] font-black uppercase tracking-widest h-10 px-6 hover:bg-fuchsia-600/20 transition-all active:scale-95"
-              >
-                <RotateCcw className="h-3.5 w-3.5" /> {t("admin.reset_presence")}
-              </Button>
-              <div className="hidden lg:block w-[1px] h-6 bg-white/10 mx-1" />
-              <Button 
-                variant="ghost" 
-                onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: true})))}
-                className="flex items-center justify-center gap-2 text-fuchsia-300/70 hover:text-white text-[10px] font-black uppercase tracking-widest h-10 px-6 hover:bg-fuchsia-600/20 transition-all active:scale-95"
-              >
-                <Users className="h-3.5 w-3.5" /> {t("admin.set_all_presence")}
-              </Button>
-            </div>
-          </div>
+          {/* ONGLET DEMANDES (Gold/Amber) */}
+          <Button
+            variant="ghost"
+            onClick={() => setActiveTab("requests")}
+            className={`relative flex-1 md:flex-none gap-2 px-6 h-10 transition-all border ${
+              activeTab === "requests" 
+                ? "bg-amber-500/15 text-amber-300 border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:bg-amber-500/25 hover:text-amber-200" 
+                : "border-transparent text-zinc-400 hover:bg-amber-500/10 hover:text-amber-300"
+            }`}
+          >
+            <RefreshCw className="h-4 w-4" /> Demandes
+            {pendingCount > 0 && (
+              <span className="absolute -top-2 -right-2 flex h-5 w-5 z-20">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-5 w-5 bg-red-600 border border-[#0a0b10] text-[10px] font-black text-white items-center justify-center">
+                  {pendingCount}
+                </span>
+              </span>
+            )}
+          </Button>
+
+          {/* ONGLET HISTORIQUE (Cyan) */}
+          <Button
+            variant="ghost"
+            onClick={() => setActiveTab("history")}
+            className={`flex-1 md:flex-none gap-2 px-6 h-10 transition-all border ${
+              activeTab === "history" 
+                ? "bg-cyan-500/15 text-cyan-300 border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)] hover:bg-cyan-500/25 hover:text-cyan-200" 
+                : "border-transparent text-zinc-400 hover:bg-cyan-500/10 hover:text-cyan-300"
+            }`}
+          >
+            <ScrollText className="h-4 w-4" /> Historique
+          </Button>
         </div>
 
-        <div className="pt-4 relative">
+        {/* --- CONTENU DE L'ONGLET SÉLECTIONNÉ --- */}
+        <div className="relative">
           <div className="absolute -inset-10 bg-fuchsia-600/5 blur-[120px] pointer-events-none opacity-50" />
+          
           {loading ? (
             <div className="flex justify-center py-20">
               <div className="w-10 h-10 border-4 border-fuchsia-500/20 border-t-fuchsia-500 rounded-full animate-spin" />
             </div>
           ) : (
-            <PlayerGrid
-              players={filteredPlayers}
-              openModal={(id, type) => {
-                const p = players.find(x => x.id === id);
-                if (!p) return;
-                const has = type === "arme" ? p.has_looted_arme : type === "armure" ? p.has_looted_armure : p.has_looted_accessoires;
-                setTarget({ playerId: id, itemType: type, mode: has ? "unblock" : "block", playerName: p.name });
-                setModalOpen(true);
-              }}
-              openRemoveModal={(id, type) => {
-                const p = players.find(x => x.id === id);
-                setRemoveTarget({ playerId: id, itemType: type, playerName: p?.name });
-                setRemoveModalOpen(true);
-              }}
-              togglePresence={(id) => setPlayers(prev => prev.map(p => p.id === id ? { ...p, isPresent: !p.isPresent } : p))}
-              loadPlayers={loadData}
-            />
+            <>
+              {activeTab === "raid" && (
+                <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
+                  <BossCounts 
+                    bossCounts={bossCounts} 
+                    selectedBoss={selectedBoss} 
+                    onBossClick={setSelectedBoss} 
+                    onReset={() => setSelectedBoss(null)} 
+                  />
+
+                  <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between bg-black/20 p-4 rounded-xl border border-white/5">
+                    <div className="flex-1 w-full lg:w-auto">
+                      <FilterBar selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter} {...items} />
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0">
+                      <Button 
+                        onClick={syncWithBot}
+                        className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500 hover:text-black font-bold h-10 px-4 flex-1 lg:flex-none gap-2 transition-all"
+                      >
+                        <Mic className="h-4 w-4" /> Scan Vocal
+                      </Button>
+                      <div className="w-[1px] h-6 bg-white/10 mx-1 hidden lg:block" />
+                      <Button variant="ghost" onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: false})))} className="h-10 px-3 hover:bg-white/5" title="Reset présence">
+                        <RotateCcw className="h-4 w-4 text-zinc-400" />
+                      </Button>
+                      <Button variant="ghost" onClick={() => setPlayers(p => p.map(x => ({...x, isPresent: true})))} className="h-10 px-3 hover:bg-white/5" title="Tout cocher">
+                        <Users className="h-4 w-4 text-zinc-400" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <PlayerGrid
+                    players={filteredPlayers}
+                    openModal={(id, type) => {
+                      const p = players.find(x => x.id === id);
+                      if (!p) return;
+                      const has = type === "arme" ? p.has_looted_arme : type === "armure" ? p.has_looted_armure : p.has_looted_accessoires;
+                      setTarget({ playerId: id, itemType: type, mode: has ? "unblock" : "block", playerName: p.name });
+                      setModalOpen(true);
+                    }}
+                    openRemoveModal={(id, type) => {
+                      const p = players.find(x => x.id === id);
+                      setRemoveTarget({ playerId: id, itemType: type, playerName: p?.name });
+                      setRemoveModalOpen(true);
+                    }}
+                    togglePresence={(id) => setPlayers(prev => prev.map(p => p.id === id ? { ...p, isPresent: !p.isPresent } : p))}
+                    loadPlayers={loadData}
+                  />
+                </div>
+              )}
+
+              {activeTab === "requests" && (
+                <div className="animate-in slide-in-from-bottom-4 duration-300">
+                  <ChangeRequestsTab onDataChanged={loadData} />
+                </div>
+              )}
+
+              {activeTab === "history" && (
+                <div className="animate-in slide-in-from-bottom-4 duration-300">
+                  <HistoryTab />
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
 
       <BlockModal open={modalOpen} onOpenChange={setModalOpen} target={target} onConfirm={confirmBlock} />
-      
-      <RemoveModal 
-        open={removeModalOpen} 
-        onOpenChange={setRemoveModalOpen} 
-        target={removeTarget} 
-        onConfirm={async () => {
+      <RemoveModal open={removeModalOpen} onOpenChange={setRemoveModalOpen} target={removeTarget} onConfirm={async () => {
           if (!removeTarget) return;
           try {
             const { data: currentPlayer } = await getPlayerById(removeTarget.playerId);
@@ -354,14 +381,8 @@ const Admin: React.FC = () => {
             await loadData();
           } catch { toast.error(t("admin.action_error")); }
           setRemoveModalOpen(false);
-        }} 
-      />
-
-      <UnlockAllModal 
-        open={unlockModalOpen} 
-        onOpenChange={setUnlockModalOpen} 
-        target={null} 
-        onConfirm={async () => {
+      }} />
+      <UnlockAllModal open={unlockModalOpen} onOpenChange={setUnlockModalOpen} target={null} onConfirm={async () => {
           try {
             await Promise.all(players.map(async p => {
                const { data: currentPlayer } = await getPlayerById(p.id);
@@ -384,19 +405,7 @@ const Admin: React.FC = () => {
             await loadData();
           } catch { toast.error(t("admin.action_error")); }
           setUnlockModalOpen(false);
-        }} 
-      />
-
-      <HistoryModal 
-        open={historyModalOpen} 
-        onOpenChange={setHistoryModalOpen} 
-      />
-
-      <ChangeRequestsModal 
-        open={requestsModalOpen} 
-        onOpenChange={setRequestsModalOpen} 
-        onDataChanged={loadData} // Va recharger la liste des joueurs si tu valides un échange !
-      />
+      }} />
     </div>
   );
 };
