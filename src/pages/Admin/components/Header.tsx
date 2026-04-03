@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, ScrollText, RefreshCw } from "lucide-react";
+import { ShieldAlert, ScrollText, RefreshCw, Mic } from "lucide-react"; // Ajout de Mic
 import { useTranslation } from "react-i18next";
 
-const Header = ({ onUnlockAll, onOpenHistory, onOpenChangeRequest, requestCount = 0 }) => {
+const Header = ({ onUnlockAll, onOpenHistory, onOpenChangeRequest, onAutoPresence, requestCount = 0 }) => {
   const { t } = useTranslation();
 
   return (
@@ -22,6 +22,17 @@ const Header = ({ onUnlockAll, onOpenHistory, onOpenChangeRequest, requestCount 
       {/* --- ZONE BOUTONS D'ACTION --- */}
       <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full lg:w-auto">
         
+        {/* BOUTON: Sync Vocal (Cyan) - NOUVEAU */}
+        <Button
+          onClick={onAutoPresence}
+          variant="outline"
+          className="group relative border-cyan-500/30 bg-cyan-500/5 text-cyan-400 hover:bg-cyan-500 hover:text-black transition-all duration-300 gap-2 px-4 sm:px-6 py-5 h-auto font-bold uppercase tracking-widest text-xs flex-1 sm:flex-none"
+        >
+          <div className="absolute inset-0 bg-cyan-500/20 blur-xl group-hover:blur-2xl transition-all opacity-0 group-hover:opacity-100" />
+          <Mic className="h-4 w-4 transition-transform group-hover:scale-110 relative z-10" />
+          <span className="relative z-10">Vocal</span>
+        </Button>
+
         {/* Bouton: Demandes (Gold) */}
         <div className="relative flex-1 sm:flex-none">
           <Button

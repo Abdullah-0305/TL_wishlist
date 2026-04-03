@@ -221,12 +221,59 @@ const Admin: React.FC = () => {
 
   if (!user) return <Navigate to="/login" replace />;
 
+  const syncWithBot = async () => {
+    const toastId = toast.loading("Interrogation du Bot...");
+
+    try {
+      // 1. On va chercher les données ultra-fraîches dans Supabase
+      // (Pour être sûr d'avoir ce que le bot vient juste d'écrire)
+      const { data: dbPlayers, error } = await supabase
+        .from('players')
+        .select('id, is_online');
+
+      if (error) throw error;
+
+      // 2. On coche les cases sur le site
+      let matchCount = 0;
+      
+      setPlayers((currentPlayers) => {
+        return currentPlayers.map((player) => {
+          // On cherche le statut de ce joueur dans les données fraîches
+          const freshData = dbPlayers.find(dbP => dbP.id === player.id);
+          
+          // Si le bot a dit qu'il est en ligne (true)
+          if (freshData && freshData.is_online) {
+            matchCount++;
+            return { ...player, isPresent: true }; // On le coche !
+          }
+          
+          return player;
+        });
+      });
+
+      if (matchCount > 0) {
+        toast.success(`${matchCount} joueurs cochés pour le Boss !`, { id: toastId });
+      } else {
+        toast.info("Le bot n'a détecté personne en vocal.", { id: toastId });
+      }
+
+    } catch (error) {
+      console.error("Erreur Sync Bot:", error);
+      toast.error("Erreur lors de la lecture de la base de données.", { id: toastId });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0b10] bg-[radial-gradient(ellipse_at_top,_rgba(88,28,135,0.15)_0%,_rgba(10,11,16,1)_80%)] text-zinc-100 pb-20">
       <div className="max-w-7xl mx-auto space-y-6 p-4 md:p-10 animate-in fade-in duration-500">
         
-        <Header onUnlockAll={() => setUnlockModalOpen(true)} onOpenHistory={() => setHistoryModalOpen(true)} onOpenChangeRequest={() => setRequestsModalOpen(true)} requestCount={pendingCount}/>
-        
+      <Header 
+        onUnlockAll={() => setUnlockModalOpen(true)} 
+        onOpenHistory={() => setHistoryModalOpen(true)} 
+        onOpenChangeRequest={() => setRequestsModalOpen(true)} 
+        onAutoPresence={syncWithBot} // <-- ON BRANCHE LA NOUVELLE FONCTION ICI
+        requestCount={pendingCount}
+      />        
         <BossCounts 
           bossCounts={bossCounts} 
           selectedBoss={selectedBoss} 

@@ -35,7 +35,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const checkKey = `discord_verified_${authUser.id}`;
       const isSigningUp = sessionStorage.getItem("is_signing_up") === "true";
       
-      // On garde une trace de si on a réussi à obtenir des infos Discord fraîches
       let hasFreshDiscordData = false;
       let effectiveName = authUser.user_metadata?.full_name || authUser.user_metadata?.name;
 
@@ -51,12 +50,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (discordRes.ok) {
             const memberData = await discordRes.json();
-            hasFreshDiscordData = true; // On a bien les infos du serveur !
+            hasFreshDiscordData = true; 
             
             if (memberData.nick) effectiveName = memberData.nick;
             else if (memberData.user?.global_name) effectiveName = memberData.user.global_name;
 
-            // --- VÉRIFICATION DE RÔLE ---
             if (!memberData.roles.includes(REQUIRED_ROLE_ID)) {
               toast.error("Accès refusé", {
                 description: "Rôle Trinity requis manquant sur le serveur Discord.",
@@ -79,15 +77,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // 2. UPSERT EN BASE (INTELLIGENT)
-      // On prépare l'objet de base (ID et Avatar)
+      // 2. UPSERT EN BASE (MODIFIÉ POUR DISCORD_ID)
+      // On récupère l'ID Discord réel depuis les identités de l'utilisateur
+      const discordIdentity = authUser.identities?.find(id => id.provider === 'discord');
+      const realDiscordId = discordIdentity?.id; 
+
       const upsertData: any = { 
-        id: authUser.id, 
-        avatar_url: authUser.user_metadata?.avatar_url 
+        id: authUser.id, // L'UUID pour la relation Auth
+        avatar_url: authUser.user_metadata?.avatar_url,
+        discord_id: realDiscordId // ON ENREGISTRE L'ID DISCORD ICI
       };
 
-      // ON NE MET À JOUR LE NOM QUE SI ON VIENT DE LE RÉCUPÉRER SUR DISCORD
-      // Cela évite que le pseudo global de l'utilisateur n'écrase le pseudo du serveur lors d'un refresh (F5)
       if (hasFreshDiscordData && effectiveName) {
         upsertData.discord_name = effectiveName;
       }
@@ -106,7 +106,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // 3. FINALISATION
       if (playerInfo) {
-        // On fusionne les infos Auth et les infos DB (pour is_admin)
         setUser({ ...authUser, is_admin: playerInfo.is_admin });
         
         if (isSigningUp) {
@@ -134,8 +133,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: { session: s } } = await supabase.auth.getSession();
       
       if (s) {
-        // On retire le flag de vérification au refresh pour forcer un re-check propre 
-        // sauf si on est en plein process de login
         if (sessionStorage.getItem("is_signing_up") !== "true") {
           sessionStorage.removeItem(`discord_verified_${s.user.id}`);
         }
