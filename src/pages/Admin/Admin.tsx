@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslation } from "react-i18next";
-import { Users, RotateCcw, Mic, ScrollText, RefreshCw, Swords } from "lucide-react";
+import { Users, RotateCcw, Mic, ScrollText, RefreshCw, Swords, Zap } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 import Header from "./components/Header";
@@ -241,6 +241,18 @@ const Admin: React.FC = () => {
 
   if (!user) return <Navigate to="/login" replace />;
 
+  const wakeUpBot = async () => {
+    const toastId = toast.loading("Réveil du bot en cours (peut prendre jusqu'à 60s)...");
+    try {
+      // Le mode 'no-cors' permet d'envoyer le ping sans déclencher d'erreur de sécurité du navigateur
+      await fetch("https://wishlist-bot-lyy7.onrender.com/", { mode: 'no-cors' });
+      toast.success("Signal envoyé ! Attendez quelques secondes puis faites le Scan.", { id: toastId, duration: 5000 });
+    } catch (error) {
+      console.error("Erreur Wake Bot:", error);
+      toast.error("Erreur lors de l'appel au bot.", { id: toastId });
+    }
+  };
+
   const syncWithBot = async () => {
     const toastId = toast.loading("Interrogation du Bot...");
     try {
@@ -352,6 +364,14 @@ const Admin: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0">
+                      <Button 
+                        onClick={wakeUpBot}
+                        variant="outline"
+                        className="bg-purple-500/10 text-purple-400 border border-purple-500/30 hover:bg-purple-500 hover:text-white font-bold h-10 px-4 flex-1 lg:flex-none gap-2 transition-all"
+                      >
+                        <Zap className="h-4 w-4" /> Réveiller Bot
+                      </Button>
+
                       <Button 
                         onClick={syncWithBot}
                         className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500 hover:text-black font-bold h-10 px-4 flex-1 lg:flex-none gap-2 transition-all"
