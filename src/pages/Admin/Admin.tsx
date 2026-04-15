@@ -15,7 +15,6 @@ import RemoveModal, { RemoveTarget } from "./components/RemoveModal";
 import UnlockAllModal from "./components/UnlockAllModal";
 import { Button } from "@/components/ui/button";
 
-// Nouveaux imports des onglets
 import HistoryTab from "./components/HistoryTab"; 
 import ChangeRequestsTab from "./components/ChangeRequestsTab"; 
 
@@ -80,14 +79,20 @@ const Admin: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [armesRes, armuresRes, accRes, rolesRes, playersRes, bossRes, requestsRes] = await Promise.all([
+      // NOUVEAU : On charge aussi les tables de liaison (armures_boss et accessoires_boss)
+      const [
+        armesRes, armuresRes, accRes, rolesRes, playersRes, bossRes, requestsRes,
+        armuresBossRes, accBossRes
+      ] = await Promise.all([
         getArmes(),
         getArmures(),
         getAccessoires(),
         supabase.from('role').select('*'),
         getPlayers(),
         supabase.from('boss').select('*'),
-        getPendingChangeRequests()
+        getPendingChangeRequests(),
+        supabase.from('armures_boss').select('*'),
+        supabase.from('accessoires_boss').select('*')
       ]);
 
       const weaponsMap = new Map(armesRes.data?.map(i => [i.id.toString(), i]));
@@ -95,6 +100,22 @@ const Admin: React.FC = () => {
       const accMap = new Map(accRes.data?.map(i => [i.id.toString(), i]));
       const rolesMap = new Map(rolesRes.data?.map(r => [r.id.toString(), r]));
       const bossesMap = new Map(bossRes.data?.map(b => [b.id.toString(), b.name]));
+
+      // DICTIONNAIRES DE LIAISON (Pour les armures et accessoires)
+      // On groupe tous les idBoss pour un même idArmure ou idAccessoire
+      const armuresBossMap = new Map<string, string[]>();
+      armuresBossRes.data?.forEach(row => {
+        const key = row.idArmure?.toString();
+        if (!armuresBossMap.has(key)) armuresBossMap.set(key, []);
+        armuresBossMap.get(key)?.push(row.idBoss?.toString());
+      });
+
+      const accBossMap = new Map<string, string[]>();
+      accBossRes.data?.forEach(row => {
+        const key = row.idAccessoire?.toString();
+        if (!accBossMap.has(key)) accBossMap.set(key, []);
+        accBossMap.get(key)?.push(row.idBoss?.toString());
+      });
 
       setItems({ 
         armes: armesRes.data || [], 
@@ -116,10 +137,25 @@ const Admin: React.FC = () => {
           const acData = accMap.get(wl.id_accessoire?.toString());
           const rData = rolesMap.get(p.role?.toString());
 
-          const getBossArray = (itemData: any) => {
+          // 1. Pour les Armes (le idBoss est direct dans la table armes)
+          const getArmeBossArray = (itemData: any) => {
             if (!itemData || !itemData.idBoss) return [];
             const bossName = bossesMap.get(itemData.idBoss.toString());
             return bossName ? [bossName] : []; 
+          };
+
+          // 2. Pour les Armures (via la table de liaison)
+          const getArmureBossArray = (idArmure: any) => {
+            if (!idArmure) return [];
+            const bossIds = armuresBossMap.get(idArmure.toString()) || [];
+            return bossIds.map(bId => bossesMap.get(bId)).filter(Boolean); // On retourne les noms trouvés
+          };
+
+          // 3. Pour les Accessoires (via la table de liaison)
+          const getAccessoireBossArray = (idAccessoire: any) => {
+            if (!idAccessoire) return [];
+            const bossIds = accBossMap.get(idAccessoire.toString()) || [];
+            return bossIds.map(bId => bossesMap.get(bId)).filter(Boolean);
           };
 
           return {
@@ -140,9 +176,12 @@ const Admin: React.FC = () => {
             armeName: wData?.name || null,
             armureName: aData?.name || null,
             accessoireName: acData?.name || null,
-            armeBoss: getBossArray(wData), 
-            armureBoss: getBossArray(aData),
-            accessoireBoss: getBossArray(acData),
+            
+            // On utilise les 3 fonctions séparées
+            armeBoss: getArmeBossArray(wData), 
+            armureBoss: getArmureBossArray(wl.id_armure),
+            accessoireBoss: getAccessoireBossArray(wl.id_accessoire),
+            
             idRole: p.role,
             roleName: rData?.name || null,
             roleColor: rData?.color || "#9CA3AF"
@@ -237,7 +276,7 @@ const Admin: React.FC = () => {
         
         <Header onUnlockAll={() => setUnlockModalOpen(true)} />        
 
-{/* --- MENU DES ONGLETS --- */}
+        {/* --- MENU DES ONGLETS --- */}
         <div className="flex flex-wrap sm:flex-nowrap space-y-2 sm:space-y-0 sm:space-x-2 bg-[#1e1333]/60 p-1.5 rounded-xl border border-white/5 shadow-inner w-full md:w-fit mb-8">
           
           {/* ONGLET RAID (Fuchsia) */}
