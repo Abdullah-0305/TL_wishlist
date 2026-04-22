@@ -2,10 +2,10 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { UserCog, MoreVertical, Calendar, ShieldCheck, UserX, ShieldMinus} from "lucide-react";
 import ItemRow from "./ItemRow";
 import { useState, useRef, useEffect } from "react";
-import DeletePlayerModal from "./DeletePlayerModal.tsx";
+import DeletePlayerModal from "./DeletePlayerModal";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import NewAdminModal from "./NewAdminModal.tsx";
+import NewAdminModal from "./NewAdminModal";
 
 const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPlayers }) => {
   const { t, i18n } = useTranslation();
@@ -70,7 +70,6 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
             ref={menuRef}
             className="absolute right-2 top-11 bg-[#1e1333] shadow-[0_10px_40px_rgba(0,0,0,0.5)] rounded-xl border border-fuchsia-500/20 z-30 w-56 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
           >
-            {/* --- BOUTON ÉLÉVATION / RÉTROGRADATION --- */}
             <button
               onClick={() => {
                 setMenuOpen(false);
@@ -95,7 +94,6 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
               )}
             </button>
 
-            {/* --- BOUTON SUPPRESSION (ROUGE) --- */}
             <button
               onClick={() => {
                 setMenuOpen(false);
@@ -116,7 +114,6 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
             
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-3">
-                {/* --- AVATAR DU JOUEUR --- */}
                 <div className="relative flex-shrink-0 group">
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-fuchsia-500 to-purple-600 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-300"></div>
                   <div className="relative h-12 w-12 rounded-xl border border-white/10 overflow-hidden bg-zinc-900 flex items-center justify-center shadow-2xl">
@@ -125,7 +122,7 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
                         src={player.avatar_url} 
                         alt={player.name} 
                         className="h-full w-full object-cover"
-                        onError={(e) => { (e.target as HTMLImageElement).src = ""; }} // Fallback si URL morte
+                        onError={(e) => { (e.target as HTMLImageElement).src = ""; }} 
                       />
                     ) : (
                       <UserCog className="h-6 w-6 text-fuchsia-400" />
@@ -133,13 +130,11 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
                   </div>
                 </div>
 
-                {/* --- INFOS DU JOUEUR (NOM + PASTILLE CO-GESTION) --- */}
                 <div className="flex flex-col">
                   <CardTitle className="text-xl font-extrabold text-white tracking-tight drop-shadow-md">
                     {player.name}
                   </CardTitle>
                   
-                  {/* PASTILLE CO-GESTION */}
                   {player.is_admin && (
                     <span className="flex items-center gap-1 w-fit mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest bg-gaming-gold/10 text-gaming-gold border border-gaming-gold/40 shadow-[0_0_10px_rgba(251,191,36,0.2)]">
                       <ShieldCheck className="h-2.5 w-2.5" />
@@ -192,6 +187,13 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
             type="accessoire" 
             player={player} 
             dateDemand={player.date_demand_accessoire} 
+            openModal={openModal} 
+            openRemoveModal={openRemoveModal} 
+          />
+          <ItemRow 
+            type="archboss" 
+            player={player} 
+            dateDemand={player.date_demand_archboss} 
             openModal={openModal} 
             openRemoveModal={openRemoveModal} 
           />

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Swords, Shield as ShieldIcon, Gem, Save, Info, Lock, CheckCircle2, RefreshCw } from "lucide-react";
+import { Swords, Shield as ShieldIcon, Gem, Save, Info, Lock, CheckCircle2, RefreshCw, Skull } from "lucide-react";
 import { toast } from "sonner";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { getArmes, getArmures, getAccessoires, getRoles, updatePlayer, getPlayerById , createChangeRequest} from "@/api/db";
+import { getArmes, getArmures, getAccessoires, getRoles, updatePlayer, getPlayerById , createChangeRequest, getArchboss} from "@/api/db";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useTranslation, Trans } from "react-i18next";
@@ -15,6 +15,8 @@ interface Item {
   name: any;
 }
 
+type SlotType = "arme" | "armure" | "accessoire" | "archboss";
+
 const Wishlist = () => {
   const { user, loading: authLoading } = useAuth();
   const { t, i18n } = useTranslation();
@@ -24,26 +26,30 @@ const Wishlist = () => {
   const [weapons, setWeapons] = useState<Item[]>([]);
   const [armors, setArmors] = useState<Item[]>([]);
   const [accessories, setAccessories] = useState<Item[]>([]);
+  const [archboss, setArchboss] = useState<Item[]>([]);
   const [roles, setRoles] = useState<Item[]>([]);
 
   const [role, setRole] = useState("");
   const [selectedWeapon, setSelectedWeapon] = useState("");
   const [selectedArmor, setSelectedArmor] = useState("");
   const [selectedAccessory, setSelectedAccessory] = useState("");
+  const [selectedArchboss, setSelectedArchboss] = useState("");
 
   const [weaponLocked, setWeaponLocked] = useState(false);
   const [armorLocked, setArmorLocked] = useState(false);
   const [accessoryLocked, setAccessoryLocked] = useState(false);
+  const [archbossLocked, setArchbossLocked] = useState(false);
 
   const [hasLootedArme, setHasLootedArme] = useState(false);
   const [hasLootedArmure, setHasLootedArmure] = useState(false);
   const [hasLootedAccessoire, setHasLootedAccessoire] = useState(false);
+  const [hasLootedArchboss, setHasLootedArchboss] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
 
-  // --- NOUVEAUX STATES POUR LA DEMANDE DE CHANGEMENT ---
+  // --- NOUVEAUX STATES POUR LA DEMANDE DE CHANGEMENT (Corrigé avec Archboss) ---
   const [changeModalOpen, setChangeModalOpen] = useState(false);
-  const [changeSlotType, setChangeSlotType] = useState<"arme" | "armure" | "accessoire" | null>(null);
+  const [changeSlotType, setChangeSlotType] = useState<SlotType | null>(null);
   const [changeNewItem, setChangeNewItem] = useState<string>("");
 
   const getLocalizedName = (nameObj: any) => {
@@ -57,11 +63,12 @@ const Wishlist = () => {
 
     try {
       setLoading(true);
-      const [w, a, ac, r] = await Promise.all([getArmes(), getArmures(), getAccessoires(), getRoles()]);
+      const [w, a, ac, ab, r] = await Promise.all([getArmes(), getArmures(), getAccessoires(), getArchboss(), getRoles()]);
       
       setWeapons(w.data || []);
       setArmors(a.data || []);
       setAccessories(ac.data || []);
+      setArchboss(ab.data || []);
       setRoles(r.data || []);
 
       const { data: player, error } = await getPlayerById(user.id);
@@ -75,10 +82,12 @@ const Wishlist = () => {
       if (wl.id_arme) { setSelectedWeapon(wl.id_arme.toString()); setWeaponLocked(true); }
       if (wl.id_armure) { setSelectedArmor(wl.id_armure.toString()); setArmorLocked(true); }
       if (wl.id_accessoire) { setSelectedAccessory(wl.id_accessoire.toString()); setAccessoryLocked(true); }
+      if (wl.id_archboss) { setSelectedArchboss(wl.id_archboss.toString()); setArchbossLocked(true); }
 
       setHasLootedArme(wl.has_looted_arme || false);
       setHasLootedArmure(wl.has_looted_armure || false);
       setHasLootedAccessoire(wl.has_looted_accessoires || false);
+      setHasLootedArchboss(wl.has_looted_archboss || false);
 
     } catch (err) {
       console.error(err);
@@ -120,6 +129,10 @@ const Wishlist = () => {
           newWishlist.id_accessoire = isNaN(Number(selectedAccessory)) ? selectedAccessory : Number(selectedAccessory);
           newWishlist.date_demand_accessoire = isNaN(Number(selectedAccessory)) ? null : new Date();
       }
+      if (!archbossLocked && selectedArchboss && selectedArchboss !== "null") {
+          newWishlist.id_archboss = isNaN(Number(selectedArchboss)) ? selectedArchboss : Number(selectedArchboss);
+          newWishlist.date_demand_archboss = isNaN(Number(selectedArchboss)) ? null : new Date();
+      }
 
       const updateData = { 
         role: role,
@@ -137,7 +150,7 @@ const Wishlist = () => {
   };
 
   // --- LOGIQUE DEMANDE DE CHANGEMENT ---
-  const handleOpenChangeRequest = (type: "arme" | "armure" | "accessoire") => {
+  const handleOpenChangeRequest = (type: SlotType) => {
     setChangeSlotType(type);
     setChangeNewItem("");
     setChangeModalOpen(true);
@@ -152,7 +165,6 @@ const Wishlist = () => {
     try {
       if (!user?.id || !changeSlotType) return;
       
-      // Appel API réel !
       await createChangeRequest({ 
         player_id: user.id, 
         item_type: changeSlotType, 
@@ -171,6 +183,7 @@ const Wishlist = () => {
     if (changeSlotType === "arme") return weapons;
     if (changeSlotType === "armure") return armors;
     if (changeSlotType === "accessoire") return accessories;
+    if (changeSlotType === "archboss") return archboss;
     return [];
   };
 
@@ -283,7 +296,8 @@ const Wishlist = () => {
         {[
           { id: 'arme', title: t("wishlist.weapons_title"), icon: Swords, color: 'text-amber-400', items: weapons, locked: weaponLocked, selected: selectedWeapon, setter: setSelectedWeapon, looted: hasLootedArme, placeholder: t("wishlist.select_weapon") },
           { id: 'armure', title: t("wishlist.armors_title"), icon: ShieldIcon, color: 'text-blue-400', items: armors, locked: armorLocked, selected: selectedArmor, setter: setSelectedArmor, looted: hasLootedArmure, placeholder: t("wishlist.select_armor") },
-          { id: 'accessoire', title: t("wishlist.accessories_title"), icon: Gem, color: 'text-purple-400', items: accessories, locked: accessoryLocked, selected: selectedAccessory, setter: setSelectedAccessory, looted: hasLootedAccessoire, placeholder: t("wishlist.select_accessory") }
+          { id: 'accessoire', title: t("wishlist.accessories_title"), icon: Gem, color: 'text-purple-400', items: accessories, locked: accessoryLocked, selected: selectedAccessory, setter: setSelectedAccessory, looted: hasLootedAccessoire, placeholder: t("wishlist.select_accessory") },
+          { id: 'archboss', title: t("wishlist.archboss_title", "Archboss"), icon: Skull, color: 'text-red-400', items: archboss, locked: archbossLocked, selected: selectedArchboss, setter: setSelectedArchboss, looted: hasLootedArchboss, placeholder: t("wishlist.select_archboss", "Choisir un item")}
         ].map((slot) => (
           <div key={slot.id} className={cn(
             "relative group bg-[#1e1333]/60 border rounded-2xl p-6 transition-all duration-300",
@@ -326,7 +340,7 @@ const Wishlist = () => {
                   variant="ghost" 
                   size="sm" 
                   className="h-6 px-2 text-[9px] uppercase tracking-widest text-gaming-gold border border-gaming-gold/30 hover:bg-gaming-gold/10 transition-all"
-                  onClick={() => handleOpenChangeRequest(slot.id as any)}
+                  onClick={() => handleOpenChangeRequest(slot.id as SlotType)}
                 >
                   <RefreshCw className="h-3 w-3 mr-1.5" />
                   {t("wishlist.request_change_btn", "Changer ?")}
@@ -350,7 +364,7 @@ const Wishlist = () => {
       <div className="flex flex-col items-center gap-4">
         <Button 
           onClick={handleSave}
-          disabled={weaponLocked && armorLocked && accessoryLocked}
+          disabled={weaponLocked && armorLocked && accessoryLocked && archbossLocked}
           className="group relative bg-gradient-to-r from-fuchsia-600 to-purple-700 hover:from-fuchsia-500 hover:to-purple-600 text-white font-black px-12 py-7 h-auto rounded-2xl shadow-2xl shadow-fuchsia-900/40 border-b-4 border-fuchsia-900/60 transition-all active:translate-y-1 active:border-b-0 uppercase tracking-widest text-sm disabled:opacity-50 disabled:grayscale"
         >
           <Save className="mr-3 h-5 w-5 group-hover:rotate-12 transition-transform" />

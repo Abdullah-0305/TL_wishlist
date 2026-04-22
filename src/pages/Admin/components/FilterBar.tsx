@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Swords, Shield, Gem, X, Filter, ChevronDown } from "lucide-react";
+import { Swords, Shield, Gem, Skull, X, Filter, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -9,7 +9,8 @@ const FilterBar = ({
   setSelectedFilter,
   armes,
   armures,
-  accessoires
+  accessoires,
+  archbosses
 }) => {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as "fr" | "en";
@@ -18,7 +19,7 @@ const FilterBar = ({
   const categories = [
     { 
       id: "arme", 
-      label: t("filter.weapons"), 
+      label: t("filter.weapons", "Armes"), 
       icon: <Swords className="h-4 w-4" />, 
       items: armes, 
       color: "text-amber-400", 
@@ -27,7 +28,7 @@ const FilterBar = ({
     },
     { 
       id: "armure", 
-      label: t("filter.armors"), 
+      label: t("filter.armors", "Armures"), 
       icon: <Shield className="h-4 w-4" />, 
       items: armures, 
       color: "text-blue-400", 
@@ -36,28 +37,36 @@ const FilterBar = ({
     },
     { 
       id: "accessoire", 
-      label: t("filter.accessories"), 
+      label: t("filter.accessories", "Accessoires"), 
       icon: <Gem className="h-4 w-4" />, 
       items: accessoires, 
       color: "text-fuchsia-400", 
       border: "border-fuchsia-500/30",
       itemStyle: "text-white-100/90 hover:text-fuchsia-300 hover:border-fuchsia-500/40 bg-fuchsia-500/5"
     },
+    { 
+      id: "archboss", 
+      label: t("filter.archbosses", "Archboss"), 
+      icon: <Skull className="h-4 w-4" />, 
+      items: archbosses, 
+      color: "text-rose-500", 
+      border: "border-rose-500/30",
+      itemStyle: "text-white-100/90 hover:text-rose-300 hover:border-rose-500/40 bg-rose-500/5"
+    },
   ];
 
   return (
     <div className="w-full space-y-4">
-      {/* 1. Barre de navigation principale */}
       <div className="flex flex-wrap items-center gap-3">
         
         <div className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-xl border border-white/10 shadow-sm">
           <Filter className="h-3 w-3 text-fuchsia-500 animate-pulse" />
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300">
-            {t("filter.label")}
+            {t("filter.label", "Filtres")}
           </span>
         </div>
 
-        <div className="flex bg-[#1e1333]/80 p-1 rounded-xl border border-white/10 backdrop-blur-md shadow-lg">
+        <div className="flex bg-[#1e1333]/80 p-1 rounded-xl border border-white/10 backdrop-blur-md shadow-lg flex-wrap sm:flex-nowrap">
           {categories.map((cat) => (
             <button
               key={cat.id}
@@ -85,23 +94,22 @@ const FilterBar = ({
             className="h-10 px-4 bg-red-500/10 text-red-400 hover:bg-red-600 hover:text-white rounded-xl border border-red-500/30 gap-2 text-[10px] font-black uppercase tracking-widest transition-all animate-in zoom-in-95"
           >
             <X className="h-4 w-4" />
-            <span className="hidden xs:inline">{t("filter.reset")}</span>
+            <span className="hidden xs:inline">{t("filter.reset", "Reset")}</span>
           </Button>
         )}
       </div>
 
-      {/* 2. Grille d'items avec Lisibilité Améliorée */}
       {activeTab && (
         <div className="p-4 bg-[#1a1129] border border-fuchsia-500/20 rounded-2xl shadow-2xl animate-in fade-in slide-in-from-top-2 duration-300 relative overflow-hidden">
-          {/* Lueur d'arrière-plan adaptative */}
           <div className={cn(
             "absolute inset-0 opacity-10 pointer-events-none bg-gradient-to-b from-transparent to-black",
             categories.find(c => c.id === activeTab)?.id === "arme" ? "bg-amber-500/10" : 
-            categories.find(c => c.id === activeTab)?.id === "armure" ? "bg-fuchsia-500/10" : "bg-purple-500/10"
+            categories.find(c => c.id === activeTab)?.id === "armure" ? "bg-blue-500/10" : 
+            categories.find(c => c.id === activeTab)?.id === "accessoire" ? "bg-fuchsia-500/10" : "bg-rose-500/10"
           )} />
           
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 relative z-10">
-            {categories.find(c => c.id === activeTab)?.items.map((item) => {
+            {categories.find(c => c.id === activeTab)?.items?.map((item) => {
               const name = item.name[lang] || item.name['fr'];
               const isSelected = selectedFilter === name;
               const currentCat = categories.find(c => c.id === activeTab);

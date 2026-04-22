@@ -10,12 +10,15 @@ export interface Player {
     id_arme?: string | null;
     id_armure?: string | null;
     id_accessoire?: string | null;
+    id_archboss?: string | null;
     has_looted_arme?: boolean;
     has_looted_armure?: boolean;
     has_looted_accessoires?: boolean;
+    has_looted_archboss?: boolean;
     date_demand_arme?: Date | null;
     date_demand_armure?: Date | null;
     date_demand_accessoires?: Date | null;
+    date_demande_archboss?: Date | null;
     date_last_looted_item?: string | null;
   } | null;
   is_online: boolean;
@@ -25,6 +28,7 @@ export interface Player {
 export async function getArmes() { return await supabase.from("armes").select("*").order("name"); }
 export async function getArmures() { return await supabase.from("armures").select("*").order("name"); }
 export async function getAccessoires() { return await supabase.from("accessoires").select("*").order("name"); }
+export async function getArchboss() { return await supabase.from("archboss").select("*").order("name");}
 export async function getRoles() { return await supabase.from("role").select("*").order("name"); }
 
 export async function getPlayers() {

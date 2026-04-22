@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { RefreshCw, Target, Swords, Shield, Gem } from "lucide-react";
+import { RefreshCw, Target, Swords, Shield, Gem, Skull } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -9,6 +9,7 @@ interface BossCountsProps {
     armes: [string, number][];
     armures: [string, number][];
     accessoires: [string, number][];
+    archbosses: [string, number][];
   };
   selectedBoss: string | null;
   onBossClick: (boss: string) => void;
@@ -25,38 +26,44 @@ const BossCounts: React.FC<BossCountsProps> = ({
 
   const sections = [
     { 
-      label: t("boss_counts.weapons"), 
+      label: t("boss_counts.weapons", "Armes"), 
       data: bossCounts.armes, 
       color: "text-amber-400", 
       icon: <Swords className="h-4 w-4" />,
-      glow: "group-hover:shadow-[0_0_15px_rgba(217,70,239,0.3)]"
+      glow: "group-hover:shadow-[0_0_15px_rgba(251,191,36,0.3)]"
     },
     { 
-      label: t("boss_counts.armors"), 
+      label: t("boss_counts.armors", "Armures"), 
       data: bossCounts.armures, 
       color: "text-blue-400", 
       icon: <Shield className="h-4 w-4" />,
-      glow: "group-hover:shadow-[0_0_15px_rgba(168,85,247,0.3)]"
+      glow: "group-hover:shadow-[0_0_15px_rgba(96,165,250,0.3)]"
     },
     { 
-      label: t("boss_counts.accessories"), 
+      label: t("boss_counts.accessories", "Accessoires"), 
       data: bossCounts.accessoires, 
       color: "text-fuchsia-400", 
       icon: <Gem className="h-4 w-4" />,
-      glow: "group-hover:shadow-[0_0_15px_rgba(212,175,55,0.3)]"
+      glow: "group-hover:shadow-[0_0_15px_rgba(217,70,239,0.3)]"
+    },
+    { 
+      label: t("boss_counts.archbosses", "Archboss"), 
+      data: bossCounts.archbosses, 
+      color: "text-rose-500", 
+      icon: <Skull className="h-4 w-4" />,
+      glow: "group-hover:shadow-[0_0_15px_rgba(244,63,94,0.3)]"
     },
   ];
 
   return (
     <div className="space-y-6 mb-10">
-      {/* Header avec titre Néon */}
       <div className="flex items-center justify-between border-b border-fuchsia-500/20 pb-3">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-fuchsia-500/10 rounded-lg border border-fuchsia-500/30">
             <Target className="h-5 w-5 text-fuchsia-500" />
           </div>
           <h3 className="text-xl font-black uppercase tracking-tighter text-white">
-            {t("boss_counts.main_title")}
+            {t("boss_counts.main_title", "Objectifs du Raid")}
           </h3>
         </div>
         
@@ -67,18 +74,18 @@ const BossCounts: React.FC<BossCountsProps> = ({
             className="text-[10px] uppercase tracking-widest font-black h-8 text-fuchsia-400 hover:text-white hover:bg-fuchsia-500/20 gap-2 transition-all animate-in fade-in slide-in-from-right-4 border border-fuchsia-500/30"
           >
             <RefreshCw className="h-3 w-3" />
-            {t("boss_counts.reset_filter")}
+            {t("boss_counts.reset_filter", "Réinitialiser")}
           </Button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* MODIFIÉ : grid-cols-4 sur grand écran pour aligner les 4 blocs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {sections.map((section) => (
           <div
             key={section.label}
-            className="group flex flex-col bg-[#1e1333]/60 backdrop-blur-xl border border-fuchsia-500/10 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 hover:border-fuchsia-500/30"
+            className={`group flex flex-col bg-[#1e1333]/60 backdrop-blur-xl border border-fuchsia-500/10 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 hover:border-fuchsia-500/30 ${section.glow}`}
           >
-            {/* Header de section avec dégradé subtil */}
             <div className="px-4 py-3 bg-white/[0.03] border-b border-white/5 flex items-center justify-between">
               <h4 className={cn("font-black text-[10px] uppercase tracking-[0.2em]", section.color)}>
                 {section.label}
@@ -89,13 +96,13 @@ const BossCounts: React.FC<BossCountsProps> = ({
             </div>
 
             <div className="p-4 flex-grow">
-              {section.data.length === 0 ? (
+              {section.data?.length === 0 ? (
                 <div className="text-[10px] text-fuchsia-300/30 uppercase tracking-widest italic py-4 text-center">
-                  {t("boss_counts.no_boss")}
+                  {t("boss_counts.no_boss", "Aucun objectif")}
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {section.data.map(([boss, count]) => {
+                  {section.data?.map(([boss, count]) => {
                     const isActive = selectedBoss === boss;
 
                     return (

@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslation } from "react-i18next";
-import { Users, RotateCcw, Mic, ScrollText, RefreshCw, Swords, Zap } from "lucide-react";
+import { Users, RotateCcw, Mic, ScrollText, RefreshCw, Swords, Zap, Skull } from "lucide-react"; // <-- Ajout de Skull ici
 import { supabase } from "@/lib/supabase";
 
 import Header from "./components/Header";
@@ -15,12 +15,14 @@ import RemoveModal, { RemoveTarget } from "./components/RemoveModal";
 import UnlockAllModal from "./components/UnlockAllModal";
 import { Button } from "@/components/ui/button";
 
+// Nouveaux imports des onglets
 import HistoryTab from "./components/HistoryTab"; 
 import ChangeRequestsTab from "./components/ChangeRequestsTab"; 
 
 import {
   getPlayers, setPlayerHasLooted, updatePlayer, getArmes, getArmures,
-  getAccessoires, getPlayerById, resetLastLootDate, getPendingChangeRequests
+  getAccessoires, getPlayerById, resetLastLootDate, getPendingChangeRequests,
+  getArchboss
 } from "@/api/db";
 
 // --- INTERFACES ---
@@ -32,15 +34,19 @@ interface Player {
   idArme?: string | number | null;
   idArmure?: string | number | null;
   idAccesoires?: string | number | null;
+  idArchboss?: string | number | null;
   has_looted_arme?: boolean;
   has_looted_armure?: boolean;
   has_looted_accessoires?: boolean;
+  has_looted_archboss?: boolean;
   armeName?: MultiLangText | null;
   armureName?: MultiLangText | null;
   accessoireName?: MultiLangText | null;
+  archbossName?: MultiLangText | null;
   armeBoss?: MultiLangText[];
   armureBoss?: MultiLangText[];
   accessoireBoss?: MultiLangText[];
+  archbossBoss?: MultiLangText[];
   idRole?: string | number | null;
   roleName?: MultiLangText | null;
   roleColor?: string;
@@ -49,6 +55,7 @@ interface Player {
   date_demand_arme?: Date | null;
   date_demand_armure?: Date | null;
   date_demand_accessoire?: Date | null;
+  date_demand_archboss?: Date | null;
   wishlist?: any;
 }
 
@@ -60,7 +67,9 @@ const Admin: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [players, setPlayers] = useState<Player[]>([]);
   const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([]);
-  const [items, setItems] = useState({ armes: [], armures: [], accessoires: [] });
+  
+  // Ajout de archbosses dans le state items
+  const [items, setItems] = useState({ armes: [], armures: [], accessoires: [], archbosses: [] });
   const [selectedFilter, setSelectedFilter] = useState<string>("");
   const [selectedBoss, setSelectedBoss] = useState<string | null>(null);
 
@@ -79,14 +88,14 @@ const Admin: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      // NOUVEAU : On charge aussi les tables de liaison (armures_boss et accessoires_boss)
       const [
-        armesRes, armuresRes, accRes, rolesRes, playersRes, bossRes, requestsRes,
+        armesRes, armuresRes, accRes, abRes, rolesRes, playersRes, bossRes, requestsRes,
         armuresBossRes, accBossRes
       ] = await Promise.all([
         getArmes(),
         getArmures(),
         getAccessoires(),
+        getArchboss(),
         supabase.from('role').select('*'),
         getPlayers(),
         supabase.from('boss').select('*'),
@@ -98,11 +107,10 @@ const Admin: React.FC = () => {
       const weaponsMap = new Map(armesRes.data?.map(i => [i.id.toString(), i]));
       const armorsMap = new Map(armuresRes.data?.map(i => [i.id.toString(), i]));
       const accMap = new Map(accRes.data?.map(i => [i.id.toString(), i]));
+      const abMap = new Map(abRes.data?.map(i => [i.id.toString(), i]));
       const rolesMap = new Map(rolesRes.data?.map(r => [r.id.toString(), r]));
       const bossesMap = new Map(bossRes.data?.map(b => [b.id.toString(), b.name]));
 
-      // DICTIONNAIRES DE LIAISON (Pour les armures et accessoires)
-      // On groupe tous les idBoss pour un même idArmure ou idAccessoire
       const armuresBossMap = new Map<string, string[]>();
       armuresBossRes.data?.forEach(row => {
         const key = row.idArmure?.toString();
@@ -117,10 +125,12 @@ const Admin: React.FC = () => {
         accBossMap.get(key)?.push(row.idBoss?.toString());
       });
 
+      // Ajout archbosses
       setItems({ 
         armes: armesRes.data || [], 
         armures: armuresRes.data || [], 
-        accessoires: accRes.data || [] 
+        accessoires: accRes.data || [],
+        archbosses: abRes.data || []
       });
 
       if (playersRes.data) {
@@ -135,27 +145,32 @@ const Admin: React.FC = () => {
           const wData = weaponsMap.get(wl.id_arme?.toString());
           const aData = armorsMap.get(wl.id_armure?.toString());
           const acData = accMap.get(wl.id_accessoire?.toString());
+          const abData = abMap.get(wl.id_archboss?.toString());
           const rData = rolesMap.get(p.role?.toString());
 
-          // 1. Pour les Armes (le idBoss est direct dans la table armes)
           const getArmeBossArray = (itemData: any) => {
             if (!itemData || !itemData.idBoss) return [];
             const bossName = bossesMap.get(itemData.idBoss.toString());
             return bossName ? [bossName] : []; 
           };
 
-          // 2. Pour les Armures (via la table de liaison)
           const getArmureBossArray = (idArmure: any) => {
             if (!idArmure) return [];
             const bossIds = armuresBossMap.get(idArmure.toString()) || [];
-            return bossIds.map(bId => bossesMap.get(bId)).filter(Boolean); // On retourne les noms trouvés
+            return bossIds.map(bId => bossesMap.get(bId)).filter(Boolean); 
           };
 
-          // 3. Pour les Accessoires (via la table de liaison)
           const getAccessoireBossArray = (idAccessoire: any) => {
             if (!idAccessoire) return [];
             const bossIds = accBossMap.get(idAccessoire.toString()) || [];
             return bossIds.map(bId => bossesMap.get(bId)).filter(Boolean);
+          };
+
+          // Archboss fonctionne comme les armes
+          const getArchbossBossArray = (itemData: any) => {
+            if (!itemData || !itemData.idBoss) return [];
+            const bossName = bossesMap.get(itemData.idBoss.toString());
+            return bossName ? [bossName] : []; 
           };
 
           return {
@@ -166,21 +181,25 @@ const Admin: React.FC = () => {
             idArme: wl.id_arme,
             idArmure: wl.id_armure,
             idAccesoires: wl.id_accessoire,
+            idArchboss: wl.id_archboss,
             has_looted_arme: wl.has_looted_arme || false,
             has_looted_armure: wl.has_looted_armure || false,
             has_looted_accessoires: wl.has_looted_accessoires || false,
+            has_looted_archboss: wl.has_looted_archboss || false,
             date_last_looted_item: wl.date_last_looted_item ? new Date(wl.date_last_looted_item) : null,
             date_demand_arme: wl.date_demand_arme ? new Date(wl.date_demand_arme) : null,
             date_demand_armure: wl.date_demand_armure ? new Date(wl.date_demand_armure) : null,
             date_demand_accessoire: wl.date_demand_accessoire ? new Date(wl.date_demand_accessoire) : null,
+            date_demand_archboss: wl.date_demand_archboss ? new Date(wl.date_demand_archboss) : null,
             armeName: wData?.name || null,
             armureName: aData?.name || null,
             accessoireName: acData?.name || null,
+            archbossName: abData?.name || null,
             
-            // On utilise les 3 fonctions séparées
             armeBoss: getArmeBossArray(wData), 
             armureBoss: getArmureBossArray(wl.id_armure),
             accessoireBoss: getAccessoireBossArray(wl.id_accessoire),
+            archbossBoss: getArchbossBossArray(abData),
             
             idRole: p.role,
             roleName: rData?.name || null,
@@ -209,24 +228,31 @@ const Admin: React.FC = () => {
       result = result.filter(p => p.isPresent && (
         p.armeBoss?.some(b => b[lang] === selectedBoss) ||
         p.armureBoss?.some(b => b[lang] === selectedBoss) ||
-        p.accessoireBoss?.some(b => b[lang] === selectedBoss)
+        p.accessoireBoss?.some(b => b[lang] === selectedBoss) ||
+        p.archbossBoss?.some(b => b[lang] === selectedBoss) // Ajout Archboss
       ));
     } else if (selectedFilter) {
-      result = result.filter(p => p.armeName?.[lang] === selectedFilter || p.armureName?.[lang] === selectedFilter || p.accessoireName?.[lang] === selectedFilter);
+      result = result.filter(p => 
+        p.armeName?.[lang] === selectedFilter || 
+        p.armureName?.[lang] === selectedFilter || 
+        p.accessoireName?.[lang] === selectedFilter ||
+        p.archbossName?.[lang] === selectedFilter // Ajout Archboss
+      );
     }
     setFilteredPlayers(result);
   }, [selectedFilter, selectedBoss, players, lang]);
 
   // --- COMPTAGE BOSS ---
   const bossCounts = useMemo(() => {
-    const c: Record<string, Record<string, number>> = { armes: {}, armures: {}, accessoires: {} };
+    const c: Record<string, Record<string, number>> = { armes: {}, armures: {}, accessoires: {}, archbosses: {} };
     players.filter(p => p.isPresent).forEach(p => {
       if (!p.has_looted_arme) p.armeBoss?.forEach(b => c.armes[b[lang]] = (c.armes[b[lang]] || 0) + 1);
       if (!p.has_looted_armure) p.armureBoss?.forEach(b => c.armures[b[lang]] = (c.armures[b[lang]] || 0) + 1);
       if (!p.has_looted_accessoires) p.accessoireBoss?.forEach(b => c.accessoires[b[lang]] = (c.accessoires[b[lang]] || 0) + 1);
+      if (!p.has_looted_archboss) p.archbossBoss?.forEach(b => c.archbosses[b[lang]] = (c.archbosses[b[lang]] || 0) + 1); // Ajout Archboss
     });
     const sort = (obj: Record<string, number>): [string, number][] => Object.entries(obj).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-    return { armes: sort(c.armes), armures: sort(c.armures), accessoires: sort(c.accessoires) };
+    return { armes: sort(c.armes), armures: sort(c.armures), accessoires: sort(c.accessoires), archbosses: sort(c.archbosses) };
   }, [players, lang]);
 
   const confirmBlock = async () => {
@@ -244,7 +270,6 @@ const Admin: React.FC = () => {
   const wakeUpBot = async () => {
     const toastId = toast.loading("Réveil du bot en cours (peut prendre jusqu'à 60s)...");
     try {
-      // Le mode 'no-cors' permet d'envoyer le ping sans déclencher d'erreur de sécurité du navigateur
       await fetch("https://wishlist-bot-lyy7.onrender.com/", { mode: 'no-cors' });
       toast.success("Signal envoyé ! Attendez quelques secondes puis faites le Scan.", { id: toastId, duration: 5000 });
     } catch (error) {
@@ -291,7 +316,6 @@ const Admin: React.FC = () => {
         {/* --- MENU DES ONGLETS --- */}
         <div className="flex flex-wrap sm:flex-nowrap space-y-2 sm:space-y-0 sm:space-x-2 bg-[#1e1333]/60 p-1.5 rounded-xl border border-white/5 shadow-inner w-full md:w-fit mb-8">
           
-          {/* ONGLET RAID (Fuchsia) */}
           <Button
             variant="ghost"
             onClick={() => setActiveTab("raid")}
@@ -304,7 +328,6 @@ const Admin: React.FC = () => {
             <Swords className="h-4 w-4" /> Actif
           </Button>
 
-          {/* ONGLET DEMANDES (Gold/Amber) */}
           <Button
             variant="ghost"
             onClick={() => setActiveTab("requests")}
@@ -325,7 +348,6 @@ const Admin: React.FC = () => {
             )}
           </Button>
 
-          {/* ONGLET HISTORIQUE (Cyan) */}
           <Button
             variant="ghost"
             onClick={() => setActiveTab("history")}
@@ -393,7 +415,11 @@ const Admin: React.FC = () => {
                     openModal={(id, type) => {
                       const p = players.find(x => x.id === id);
                       if (!p) return;
-                      const has = type === "arme" ? p.has_looted_arme : type === "armure" ? p.has_looted_armure : p.has_looted_accessoires;
+                      // Gestion de l'archboss
+                      const has = type === "arme" ? p.has_looted_arme : 
+                                  type === "armure" ? p.has_looted_armure : 
+                                  type === "accessoire" ? p.has_looted_accessoires : 
+                                  p.has_looted_archboss;
                       setTarget({ playerId: id, itemType: type, mode: has ? "unblock" : "block", playerName: p.name });
                       setModalOpen(true);
                     }}
@@ -434,6 +460,7 @@ const Admin: React.FC = () => {
             if (removeTarget.itemType === "arme") { newWishlist.id_arme = null; newWishlist.has_looted_arme = false; }
             else if (removeTarget.itemType === "armure") { newWishlist.id_armure = null; newWishlist.has_looted_armure = false; }
             else if (removeTarget.itemType === "accessoire") { newWishlist.id_accessoire = null; newWishlist.has_looted_accessoires = false; }
+            else if (removeTarget.itemType === "archboss") { newWishlist.id_archboss = null; newWishlist.has_looted_archboss = false; }
 
             await updatePlayer(removeTarget.playerId, { wishlist: newWishlist });
             toast.success(t("admin.action_success"));
@@ -450,12 +477,15 @@ const Admin: React.FC = () => {
                  has_looted_arme: false,
                  has_looted_armure: false,
                  has_looted_accessoires: false,
+                 has_looted_archboss: false, // Reset Archboss
                  id_arme: null,
                  id_armure: null,
                  id_accessoire: null,
+                 id_archboss: null, // Reset Archboss
                  date_demand_arme: null,
                  date_demand_armure: null,
                  date_demand_accessoire: null,
+                 date_demand_archboss: null, // Reset Archboss
                  date_last_looted_item: null
                };
                return updatePlayer(p.id, { wishlist: newWishlist });

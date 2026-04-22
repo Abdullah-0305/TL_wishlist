@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Swords, Shield, Gem, Lock, Unlock, Calendar } from "lucide-react";
+import { Swords, Shield, Gem, Skull, Lock, Unlock, Calendar } from "lucide-react";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { useTranslation } from "react-i18next";
 
@@ -10,39 +10,35 @@ const ItemRow = ({ type, player, dateDemand, openModal, openRemoveModal }) => {
   const icons = {
     arme: <Swords className="h-4 w-4 text-amber-400" />,
     armure: <Shield className="h-4 w-4 text-blue-400" />,
-    accessoire: <Gem className="h-4 w-4 text-fuchsia-400" />
+    accessoire: <Gem className="h-4 w-4 text-fuchsia-400" />,
+    archboss: <Skull className="h-4 w-4 text-rose-500" />
   };
 
-  // --- LOGIQUE JSONB POUR LE NOM ---
   const itemData =
     type === "arme" ? player.armeName :
     type === "armure" ? player.armureName :
-    player.accessoireName;
+    type === "accessoire" ? player.accessoireName :
+    player.archbossName;
 
-  // Si itemData existe, on prend la langue, sinon texte "Aucun" traduit
-  const displayName = itemData ? (itemData[lang] || itemData['fr']) : t("item_row.none");
+  const displayName = itemData ? (itemData[lang] || itemData['fr']) : t("item_row.none", "Aucun");
 
   const hasLooted =
     type === "arme" ? player.has_looted_arme :
     type === "armure" ? player.has_looted_armure :
-    player.has_looted_accessoires;
+    type === "accessoire" ? player.has_looted_accessoires :
+    player.has_looted_archboss;
 
-  // --- LOGIQUE JSONB POUR LES BOSS ---
   const bosses =
     type === "arme" ? player.armeBoss :
     type === "armure" ? player.armureBoss :
-    player.accessoireBoss;
+    type === "accessoire" ? player.accessoireBoss :
+    player.archbossBoss;
 
-  // On transforme le tableau d'objets [{fr, en}] en une seule chaîne de caractères
   const bossNamesList = bosses && bosses.length > 0 
     ? bosses.map((b: any) => b[lang] || b['fr']).join(", ") 
-    : t("item_row.no_boss");
+    : t("item_row.no_boss", "Aucun boss");
 
   const hasItem = !!itemData;
-
-  const formattedDemand = dateDemand 
-    ? new Date(dateDemand).toLocaleDateString() // Ou un format plus court style "12/03"
-    : null;
 
   return (
     <div className="flex items-center justify-between group">
@@ -54,19 +50,16 @@ const ItemRow = ({ type, player, dateDemand, openModal, openRemoveModal }) => {
             <Tooltip.Root>
               <Tooltip.Trigger asChild>
                 <div className="flex flex-col gap-0.5 cursor-help min-w-0">
-                  {/* Nom de l'item */}
                   <span className="text-sm truncate hover:text-fuchsia-400 transition-colors font-semibold text-zinc-100">
                     {displayName}
                   </span>
                   
-                  {/* Date de demande (Petit badge discret) */}
                   {dateDemand && (
                     <div className="flex items-center gap-1 text-[9px] text-fuchsia-400/50 uppercase font-black tracking-tighter">
                       <Calendar className="h-2.5 w-2.5" />
                       <span>
                         {new Date(dateDemand).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
-                          day: '2-digit',
-                          month: '2-digit'
+                          day: '2-digit', month: '2-digit'
                         })}
                       </span>
                     </div>
@@ -92,7 +85,6 @@ const ItemRow = ({ type, player, dateDemand, openModal, openRemoveModal }) => {
 
       {hasItem && (
         <div className="flex gap-1.5 items-center ml-2">
-          {/* Bouton Lock/Unlock */}
           <Button 
             size="sm" 
             variant={hasLooted ? "secondary" : "outline"}
@@ -107,7 +99,6 @@ const ItemRow = ({ type, player, dateDemand, openModal, openRemoveModal }) => {
             )}
           </Button>
 
-          {/* Bouton Supprimer */}
           <Button 
             size="sm" 
             variant="ghost" 
