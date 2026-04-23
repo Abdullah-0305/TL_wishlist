@@ -57,7 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (!memberData.roles.includes(REQUIRED_ROLE_ID)) {
               toast.error("Accès refusé", {
-                description: "Rôle Trinity requis manquant sur le serveur Discord.",
+                description: "Rôle Akatsushi requis manquant sur le serveur Discord.",
                 duration: 5000,
               });
               
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
              toast.warning("Discord sature, accès temporaire activé.");
           } else {
              toast.error("Vérification Discord échouée", {
-               description: "Es-tu bien membre du serveur Trinity ?"
+               description: "Es-tu bien membre du serveur Akatsushi ?"
              });
              setTimeout(() => signOut(), 2000);
              return; 

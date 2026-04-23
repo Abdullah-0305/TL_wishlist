@@ -16,7 +16,7 @@ const Maintenance = () => {
         {t("maintenance.message")}
       </p>
       <div className="mt-8 text-xs text-gaming-gold/50 uppercase tracking-widest">
-        Trinity Guild • Throne and Liberty
+        Akatsushi Guild • Throne and Liberty
       </div>
     </div>
   );

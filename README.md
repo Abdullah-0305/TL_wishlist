@@ -1,7 +1,7 @@
-# ⚔️ Trinity - Throne & Liberty Wishlist System
+# ⚔️ Akatsushi - Throne & Liberty Wishlist System
 
 > **Plateforme stratégique de gestion de loots pour les guildes de Throne & Liberty.**  
-> Centralisez les **wishlists** de vos membres et optimisez la distribution des récompenses grâce à un **Command Center ultra-rapide** signé **Trinity**.
+> Centralisez les **wishlists** de vos membres et optimisez la distribution des récompenses grâce à un **Command Center ultra-rapide** signé **Akatsushi**.
 
 ---
 
@@ -66,5 +66,5 @@ REQUIRED_ROLE_ID=<id_du_role_autorise>
 
 ### 🧩 Crédits
 
-Développé pour la guilde **Trinity** — *Throne & Liberty EU*  
+Développé pour la guilde **Akatsushi** — *Throne & Liberty EU*  
 Design original : **Néon Royal Framework**  

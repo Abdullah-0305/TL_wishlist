@@ -31,7 +31,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 <Swords className="h-4 w-4 sm:h-5 text-black" />
               </div>
               <span className="text-sm sm:text-xl font-black tracking-tighter uppercase italic bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent">
-                Trinity
+                Akatsushi
               </span>
             </Link>
 
