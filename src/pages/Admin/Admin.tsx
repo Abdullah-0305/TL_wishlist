@@ -22,7 +22,7 @@ import ChangeRequestsTab from "./components/ChangeRequestsTab";
 import {
   getPlayers, setPlayerHasLooted, updatePlayer, getArmes, getArmures,
   getAccessoires, getPlayerById, resetLastLootDate, getPendingChangeRequests,
-  getArchboss
+  getArchboss, getAppSettings
 } from "@/api/db";
 
 // --- INTERFACES ---
@@ -84,13 +84,16 @@ const Admin: React.FC = () => {
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
+  const [isArchbossEnabled, setIsArchbossEnabled] = useState(false);
+
+
   // --- CHARGEMENT OPTIMISÉ ---
   const loadData = async () => {
     try {
       setLoading(true);
       const [
         armesRes, armuresRes, accRes, abRes, rolesRes, playersRes, bossRes, requestsRes,
-        armuresBossRes, accBossRes
+        armuresBossRes, accBossRes, settingsRes
       ] = await Promise.all([
         getArmes(),
         getArmures(),
@@ -101,8 +104,15 @@ const Admin: React.FC = () => {
         supabase.from('boss').select('*'),
         getPendingChangeRequests(),
         supabase.from('armures_boss').select('*'),
-        supabase.from('accessoires_boss').select('*')
+        supabase.from('accessoires_boss').select('*'),
+        getAppSettings()
       ]);
+
+      // Vérification du Feature Flag
+      const archbossSetting = settingsRes.find(s => s.id === 'enable_archboss');
+      if (archbossSetting) {
+        setIsArchbossEnabled(archbossSetting.is_active);
+      }
 
       const weaponsMap = new Map(armesRes.data?.map(i => [i.id.toString(), i]));
       const armorsMap = new Map(armuresRes.data?.map(i => [i.id.toString(), i]));
@@ -378,11 +388,12 @@ const Admin: React.FC = () => {
                     selectedBoss={selectedBoss} 
                     onBossClick={setSelectedBoss} 
                     onReset={() => setSelectedBoss(null)} 
+                    isArchbossEnabled={isArchbossEnabled}
                   />
 
                   <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between bg-black/20 p-4 rounded-xl border border-white/5">
                     <div className="flex-1 w-full lg:w-auto">
-                      <FilterBar selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter} {...items} />
+                      <FilterBar selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter} {...items} isArchbossEnabled={isArchbossEnabled} />
                     </div>
 
                     <div className="flex items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0">
@@ -430,6 +441,7 @@ const Admin: React.FC = () => {
                     }}
                     togglePresence={(id) => setPlayers(prev => prev.map(p => p.id === id ? { ...p, isPresent: !p.isPresent } : p))}
                     loadPlayers={loadData}
+                    isArchbossEnabled={isArchbossEnabled}
                   />
                 </div>
               )}

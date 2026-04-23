@@ -7,7 +7,8 @@ const PlayerGrid = ({
   openModal,
   openRemoveModal,
   togglePresence,
-  loadPlayers
+  loadPlayers,
+  isArchbossEnabled
 }) => {
   const { t } = useTranslation();
 
@@ -34,6 +35,7 @@ const PlayerGrid = ({
           openRemoveModal={openRemoveModal}
           togglePresence={togglePresence}
           loadPlayers={loadPlayers}
+          isArchbossEnabled={isArchbossEnabled}
         />
       ))}
     </div>

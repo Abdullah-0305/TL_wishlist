@@ -4,7 +4,7 @@ import { Swords, Shield as ShieldIcon, Gem, Save, Info, Lock, CheckCircle2, Refr
 import { toast } from "sonner";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { getArmes, getArmures, getAccessoires, getRoles, updatePlayer, getPlayerById , createChangeRequest, getArchboss} from "@/api/db";
+import { getArmes, getArmures, getAccessoires, getRoles, updatePlayer, getPlayerById , createChangeRequest, getArchboss, getAppSettings} from "@/api/db";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useTranslation, Trans } from "react-i18next";
@@ -47,7 +47,10 @@ const Wishlist = () => {
 
   const [modalOpen, setModalOpen] = useState(false);
 
-  // --- NOUVEAUX STATES POUR LA DEMANDE DE CHANGEMENT (Corrigé avec Archboss) ---
+  // FEATURE FLAG
+  const [isArchbossEnabled, setIsArchbossEnabled] = useState(false);
+
+  // STATES POUR LA DEMANDE DE CHANGEMENT
   const [changeModalOpen, setChangeModalOpen] = useState(false);
   const [changeSlotType, setChangeSlotType] = useState<SlotType | null>(null);
   const [changeNewItem, setChangeNewItem] = useState<string>("");
@@ -63,13 +66,26 @@ const Wishlist = () => {
 
     try {
       setLoading(true);
-      const [w, a, ac, ab, r] = await Promise.all([getArmes(), getArmures(), getAccessoires(), getArchboss(), getRoles()]);
+      const [w, a, ac, ab, r, settingsRes] = await Promise.all([
+        getArmes(), 
+        getArmures(), 
+        getAccessoires(), 
+        getArchboss(), 
+        getRoles(),
+        getAppSettings() // <-- On charge les réglages
+      ]);
       
       setWeapons(w.data || []);
       setArmors(a.data || []);
       setAccessories(ac.data || []);
       setArchboss(ab.data || []);
       setRoles(r.data || []);
+
+      // Vérification du Feature Flag
+      const archbossSetting = settingsRes.find(s => s.id === 'enable_archboss');
+      if (archbossSetting) {
+        setIsArchbossEnabled(archbossSetting.is_active);
+      }
 
       const { data: player, error } = await getPlayerById(user.id);
       if (error) throw error;
@@ -129,7 +145,9 @@ const Wishlist = () => {
           newWishlist.id_accessoire = isNaN(Number(selectedAccessory)) ? selectedAccessory : Number(selectedAccessory);
           newWishlist.date_demand_accessoire = isNaN(Number(selectedAccessory)) ? null : new Date();
       }
-      if (!archbossLocked && selectedArchboss && selectedArchboss !== "null") {
+      
+      // On sauvegarde l'Archboss seulement s'il est activé
+      if (isArchbossEnabled && !archbossLocked && selectedArchboss && selectedArchboss !== "null") {
           newWishlist.id_archboss = isNaN(Number(selectedArchboss)) ? selectedArchboss : Number(selectedArchboss);
           newWishlist.date_demand_archboss = isNaN(Number(selectedArchboss)) ? null : new Date();
       }
@@ -149,7 +167,6 @@ const Wishlist = () => {
     }
   };
 
-  // --- LOGIQUE DEMANDE DE CHANGEMENT ---
   const handleOpenChangeRequest = (type: SlotType) => {
     setChangeSlotType(type);
     setChangeNewItem("");
@@ -178,7 +195,6 @@ const Wishlist = () => {
     }
   };
 
-  // Helper pour trouver les bons items pour le modal de changement
   const getChangeItemsList = () => {
     if (changeSlotType === "arme") return weapons;
     if (changeSlotType === "armure") return armors;
@@ -201,10 +217,28 @@ const Wishlist = () => {
     </div>
   );
 
+  // Construction dynamique des slots
+  const equipmentSlots = [
+    { id: 'arme', title: t("wishlist.weapons_title"), icon: Swords, color: 'text-amber-400', items: weapons, locked: weaponLocked, selected: selectedWeapon, setter: setSelectedWeapon, looted: hasLootedArme, placeholder: t("wishlist.select_weapon") },
+    { id: 'armure', title: t("wishlist.armors_title"), icon: ShieldIcon, color: 'text-blue-400', items: armors, locked: armorLocked, selected: selectedArmor, setter: setSelectedArmor, looted: hasLootedArmure, placeholder: t("wishlist.select_armor") },
+    { id: 'accessoire', title: t("wishlist.accessories_title"), icon: Gem, color: 'text-purple-400', items: accessories, locked: accessoryLocked, selected: selectedAccessory, setter: setSelectedAccessory, looted: hasLootedAccessoire, placeholder: t("wishlist.select_accessory") }
+  ];
+
+  if (isArchbossEnabled) {
+    equipmentSlots.push(
+      { id: 'archboss', title: t("wishlist.archboss_title", "Archboss"), icon: Skull, color: 'text-red-400', items: archboss, locked: archbossLocked, selected: selectedArchboss, setter: setSelectedArchboss, looted: hasLootedArchboss, placeholder: t("wishlist.select_archboss", "Choisir un item") }
+    );
+  }
+
+  // Vérifie si tout ce qui est affiché est verrouillé
+  const isFullyLocked = isArchbossEnabled 
+    ? (weaponLocked && armorLocked && accessoryLocked && archbossLocked)
+    : (weaponLocked && armorLocked && accessoryLocked);
+
   return (
     <div className="max-w-5xl mx-auto space-y-10 pb-20 animate-in fade-in duration-700">
       
-      {/* 📜 RÈGLES DE GUILDE (Inchangé) */}
+      {/* 📜 RÈGLES DE GUILDE */}
       <section className="relative overflow-hidden bg-[#1e1333]/40 backdrop-blur-md border border-fuchsia-500/20 rounded-3xl shadow-2xl">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-fuchsia-600 via-purple-500 to-gaming-gold" />
         <div className="p-6 md:p-8">
@@ -293,12 +327,7 @@ const Wishlist = () => {
         </div>
 
         {/* SLOTS D'ÉQUIPEMENT */}
-        {[
-          { id: 'arme', title: t("wishlist.weapons_title"), icon: Swords, color: 'text-amber-400', items: weapons, locked: weaponLocked, selected: selectedWeapon, setter: setSelectedWeapon, looted: hasLootedArme, placeholder: t("wishlist.select_weapon") },
-          { id: 'armure', title: t("wishlist.armors_title"), icon: ShieldIcon, color: 'text-blue-400', items: armors, locked: armorLocked, selected: selectedArmor, setter: setSelectedArmor, looted: hasLootedArmure, placeholder: t("wishlist.select_armor") },
-          { id: 'accessoire', title: t("wishlist.accessories_title"), icon: Gem, color: 'text-purple-400', items: accessories, locked: accessoryLocked, selected: selectedAccessory, setter: setSelectedAccessory, looted: hasLootedAccessoire, placeholder: t("wishlist.select_accessory") },
-          { id: 'archboss', title: t("wishlist.archboss_title", "Archboss"), icon: Skull, color: 'text-red-400', items: archboss, locked: archbossLocked, selected: selectedArchboss, setter: setSelectedArchboss, looted: hasLootedArchboss, placeholder: t("wishlist.select_archboss", "Choisir un item")}
-        ].map((slot) => (
+        {equipmentSlots.map((slot) => (
           <div key={slot.id} className={cn(
             "relative group bg-[#1e1333]/60 border rounded-2xl p-6 transition-all duration-300",
             slot.looted ? "border-purple-500/50 shadow-lg shadow-purple-950/20" : "border-fuchsia-500/20"
@@ -364,7 +393,7 @@ const Wishlist = () => {
       <div className="flex flex-col items-center gap-4">
         <Button 
           onClick={handleSave}
-          disabled={weaponLocked && armorLocked && accessoryLocked && archbossLocked}
+          disabled={isFullyLocked}
           className="group relative bg-gradient-to-r from-fuchsia-600 to-purple-700 hover:from-fuchsia-500 hover:to-purple-600 text-white font-black px-12 py-7 h-auto rounded-2xl shadow-2xl shadow-fuchsia-900/40 border-b-4 border-fuchsia-900/60 transition-all active:translate-y-1 active:border-b-0 uppercase tracking-widest text-sm disabled:opacity-50 disabled:grayscale"
         >
           <Save className="mr-3 h-5 w-5 group-hover:rotate-12 transition-transform" />
@@ -372,7 +401,7 @@ const Wishlist = () => {
         </Button>
       </div>
 
-      {/* MODAL DE SAUVEGARDE (Inchangé) */}
+      {/* MODAL DE SAUVEGARDE */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="bg-[#1e1333] border-fuchsia-500/30 shadow-2xl max-w-sm mx-auto p-0 overflow-hidden border-t-0">
           <div className="w-full h-1.5 bg-gradient-to-r from-fuchsia-600 via-purple-500 to-gaming-gold" />

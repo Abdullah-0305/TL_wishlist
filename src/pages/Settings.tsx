@@ -3,29 +3,36 @@ import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslation } from "react-i18next";
-import { Settings as SettingsIcon, Swords, Shield, Gem, Skull, Ghost, Plus, Pencil, Trash2 } from "lucide-react";
+import { Settings as SettingsIcon, Swords, Shield, Gem, Skull, Ghost, Plus, Pencil, Trash2, ToggleRight, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { getTableItems, saveItemWithBosses, deleteTableItem } from "@/api/db";
+import { getTableItems, saveItemWithBosses, deleteTableItem, getAppSettings, toggleSetting } from "@/api/db";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 interface SettingItem {
   id: string;
   name: { fr: string; en: string };
-  idBoss?: number; // Présent sur armes et archboss
+  idBoss?: number; 
 }
 
-type TabType = "boss" | "armes" | "armures" | "accessoires" | "archboss";
+interface AppSetting {
+  id: string;
+  is_active: boolean;
+}
+
+type TabType = "general" | "boss" | "armes" | "armures" | "accessoires" | "archboss";
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
   const lang = i18n.language?.split("-")[0] as "fr" | "en" || "fr";
   
-  const [activeTab, setActiveTab] = useState<TabType>("boss");
+  // Onglet Général par défaut
+  const [activeTab, setActiveTab] = useState<TabType>("general");
   const [items, setItems] = useState<SettingItem[]>([]);
   const [bosses, setBosses] = useState<SettingItem[]>([]);
+  const [appSettings, setAppSettings] = useState<AppSetting[]>([]);
   const [relations, setRelations] = useState<{armures: any[], accessoires: any[]}>({armures: [], accessoires: []});
   const [loading, setLoading] = useState(true);
 
@@ -36,8 +43,14 @@ const Settings: React.FC = () => {
   const [nameEn, setNameEn] = useState("");
   const [selectedBosses, setSelectedBosses] = useState<string[]>([]);
 
-  // Configuration des onglets avec les classes exactes de l'Admin
+  // Configuration des onglets
   const tabs = [
+    { 
+      id: "general", label: t("settings.tab_general", "Général"), icon: ToggleRight,
+      activeClass: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30 shadow-[0_0_15px_rgba(161,161,170,0.15)] hover:bg-zinc-500/25 hover:text-zinc-200",
+      inactiveClass: "border-transparent text-zinc-400 hover:bg-zinc-500/10 hover:text-zinc-300",
+      titleColor: "text-zinc-400"
+    },
     { 
       id: "boss", label: t("settings.tab_boss", "Boss"), icon: Ghost,
       activeClass: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)] hover:bg-emerald-500/25 hover:text-emerald-200",
@@ -73,15 +86,21 @@ const Settings: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [data, bossData, armuresBoss, accBoss] = await Promise.all([
-        getTableItems(activeTab),
-        getTableItems("boss"),
-        supabase.from("armures_boss").select("*"),
-        supabase.from("accessoires_boss").select("*")
-      ]);
-      setItems(data as SettingItem[]);
-      setBosses(bossData as SettingItem[]);
-      setRelations({ armures: armuresBoss.data || [], accessoires: accBoss.data || [] });
+      
+      if (activeTab === "general") {
+        const settings = await getAppSettings();
+        setAppSettings(settings as AppSetting[]);
+      } else {
+        const [data, bossData, armuresBoss, accBoss] = await Promise.all([
+          getTableItems(activeTab),
+          getTableItems("boss"),
+          supabase.from("armures_boss").select("*"),
+          supabase.from("accessoires_boss").select("*")
+        ]);
+        setItems(data as SettingItem[]);
+        setBosses(bossData as SettingItem[]);
+        setRelations({ armures: armuresBoss.data || [], accessoires: accBoss.data || [] });
+      }
     } catch (error) {
       console.error(error);
       toast.error(t("settings.error_load", "Erreur lors du chargement des données."));
@@ -93,6 +112,18 @@ const Settings: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [activeTab]);
+
+  // Handler pour changer un réglage (On/Off)
+  const handleToggleSetting = async (id: string, currentValue: boolean) => {
+    try {
+      await toggleSetting(id, !currentValue);
+      // Met à jour l'UI instantanément pour la fluidité
+      setAppSettings(prev => prev.map(s => s.id === id ? { ...s, is_active: !currentValue } : s));
+      toast.success(t("settings.toggle_success", "Réglage mis à jour."));
+    } catch (error) {
+      toast.error(t("settings.toggle_error", "Erreur lors de la mise à jour."));
+    }
+  };
 
   const openAddModal = () => {
     setEditingId(null);
@@ -107,7 +138,6 @@ const Settings: React.FC = () => {
     setNameFr(item.name.fr || "");
     setNameEn(item.name.en || "");
 
-    // Pré-remplir les boss sélectionnés selon la table
     if (activeTab === "armes" || activeTab === "archboss") {
       setSelectedBosses(item.idBoss ? [item.idBoss.toString()] : []);
     } else if (activeTab === "armures") {
@@ -175,7 +205,7 @@ const Settings: React.FC = () => {
           </div>
         </div>
 
-        {/* ONGLETS (Animation identique à Admin.tsx) */}
+        {/* ONGLETS */}
         <div className="flex flex-wrap sm:flex-nowrap space-y-2 sm:space-y-0 sm:space-x-2 bg-[#1e1333]/60 p-1.5 rounded-xl border border-white/5 shadow-inner w-full md:w-fit mb-8">
           {tabs.map((tab) => (
             <Button
@@ -195,50 +225,132 @@ const Settings: React.FC = () => {
         <div className="relative">
           <div className="absolute -inset-10 bg-fuchsia-600/5 blur-[120px] pointer-events-none opacity-50" />
           
-          <div className="flex justify-between items-center bg-black/20 p-4 rounded-xl border border-white/5 mb-6">
-            <h2 className={cn("text-lg font-black uppercase tracking-widest flex items-center gap-2", currentTabConfig?.titleColor)}>
-              {currentTabConfig && <currentTabConfig.icon className="h-5 w-5" />}
-              {t("settings.list_of", "Liste des")} {currentTabConfig?.label}
-            </h2>
-            <Button onClick={openAddModal} className="bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-xs">
-              <Plus className="h-4 w-4 mr-2" /> {t("settings.add_btn", "Ajouter")}
-            </Button>
-          </div>
+          {/* ONGLET GÉNÉRAL (Feature Flags) */}
+          {activeTab === "general" && (
+             <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
+               <div className="flex justify-between items-center bg-black/20 p-4 rounded-xl border border-white/5 mb-6">
+                  <h2 className={cn("text-lg font-black uppercase tracking-widest flex items-center gap-2", currentTabConfig?.titleColor)}>
+                    {currentTabConfig && <currentTabConfig.icon className="h-5 w-5" />}
+                    {t("settings.global_settings", "Réglages Globaux")}
+                  </h2>
+               </div>
 
-          {loading ? (
-            <div className="flex justify-center py-20">
-              <div className="w-10 h-10 border-4 border-fuchsia-500/20 border-t-fuchsia-500 rounded-full animate-spin" />
-            </div>
-          ) : items.length === 0 ? (
-            <div className="text-center py-20 text-zinc-500 italic text-sm border border-dashed border-white/10 rounded-xl bg-black/20">
-              {t("settings.no_items", "Aucun élément trouvé.")}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {items.map((item) => (
-                <div key={item.id} className="flex flex-col gap-3 p-4 rounded-xl bg-black/40 border border-white/5 relative group hover:border-fuchsia-500/30 transition-all shadow-xl">
-                  <div className="flex-grow">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-fuchsia-400/50 mb-1">
-                      {t("settings.name_fr", "Français")}
-                    </div>
-                    <div className="text-sm font-bold text-white mb-3 truncate">{item.name.fr}</div>
-                    
-                    <div className="text-[10px] font-black uppercase tracking-widest text-gaming-gold/50 mb-1">
-                      {t("settings.name_en", "Anglais")}
-                    </div>
-                    <div className="text-sm font-bold text-zinc-300 truncate">{item.name.en}</div>
-                  </div>
-                  
-                  <div className="flex gap-2 mt-2 pt-3 border-t border-white/5">
-                    <Button variant="ghost" size="sm" onClick={() => openEditModal(item)} className="flex-1 bg-white/5 hover:bg-fuchsia-500/20 text-zinc-300 hover:text-fuchsia-300 text-xs font-bold uppercase tracking-widest">
-                      <Pencil className="h-3.5 w-3.5 mr-2" /> {t("settings.edit_btn", "Éditer")}
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)} className="flex-none bg-red-500/10 hover:bg-red-500/20 text-red-400 px-3">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 {appSettings.map((setting) => {
+                   // Mapping dynamique pour avoir de beaux textes et couleurs selon l'ID
+                   const isArchboss = setting.id === 'enable_archboss';
+                   const title = isArchboss ? t("settings.archboss_event", "Événement Archboss") : setting.id;
+                   const desc = isArchboss ? t("settings.archboss_desc", "Affiche l'onglet dans la Wishlist et l'Admin") : "";
+                   
+                   const Icon = isArchboss ? Skull : Power;
+                   const activeColor = isArchboss ? "bg-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.4)]" : "bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]";
+                   const cardBorder = setting.is_active ? (isArchboss ? "border-rose-500/50" : "border-emerald-500/50") : "border-white/5";
+                   const iconColor = setting.is_active ? (isArchboss ? "text-rose-400" : "text-emerald-400") : "text-zinc-500";
+                   const iconBg = setting.is_active ? (isArchboss ? "bg-rose-500/10" : "bg-emerald-500/10") : "bg-white/5";
+
+                   return (
+                     <div 
+                       key={setting.id} 
+                       className={cn(
+                         "flex flex-col justify-between p-6 rounded-2xl bg-black/40 border transition-all duration-300 relative overflow-hidden group",
+                         cardBorder
+                       )}
+                     >
+                        {/* Lueur de fond si actif */}
+                        {setting.is_active && (
+                          <div className={cn(
+                            "absolute -top-10 -right-10 w-32 h-32 blur-[60px] opacity-20 pointer-events-none transition-all duration-500",
+                            isArchboss ? "bg-rose-500" : "bg-emerald-500"
+                          )} />
+                        )}
+
+                        <div className="flex items-start justify-between mb-6 relative z-10">
+                          <div className={cn("p-3 rounded-xl transition-colors duration-300", iconBg)}>
+                            <Icon className={cn("h-6 w-6 transition-colors duration-300", iconColor)} />
+                          </div>
+                          <button 
+                            onClick={() => handleToggleSetting(setting.id, setting.is_active)}
+                            className={cn(
+                              "relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-all duration-300 ease-in-out focus:outline-none",
+                              setting.is_active ? activeColor : "bg-zinc-700/80"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-300 ease-in-out",
+                                setting.is_active ? "translate-x-5" : "translate-x-0.5"
+                              )}
+                            />
+                          </button>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5 relative z-10">
+                          <span className={cn(
+                            "font-black uppercase tracking-widest text-sm transition-colors duration-300",
+                            setting.is_active ? "text-white" : "text-zinc-400"
+                          )}>
+                            {title}
+                          </span>
+                          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest leading-relaxed">
+                            {desc}
+                          </span>
+                        </div>
+                     </div>
+                   );
+                 })}
+               </div>
+             </div>
+          )}
+
+          {/* AUTRES ONGLETS (Listes d'items) */}
+          {activeTab !== "general" && (
+            <div className="animate-in slide-in-from-bottom-4 duration-300">
+              <div className="flex justify-between items-center bg-black/20 p-4 rounded-xl border border-white/5 mb-6">
+                <h2 className={cn("text-lg font-black uppercase tracking-widest flex items-center gap-2", currentTabConfig?.titleColor)}>
+                  {currentTabConfig && <currentTabConfig.icon className="h-5 w-5" />}
+                  {t("settings.list_of", "Liste des")} {currentTabConfig?.label}
+                </h2>
+                <Button onClick={openAddModal} className="bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-xs">
+                  <Plus className="h-4 w-4 mr-2" /> {t("settings.add_btn", "Ajouter")}
+                </Button>
+              </div>
+
+              {loading ? (
+                <div className="flex justify-center py-20">
+                  <div className="w-10 h-10 border-4 border-fuchsia-500/20 border-t-fuchsia-500 rounded-full animate-spin" />
                 </div>
-              ))}
+              ) : items.length === 0 ? (
+                <div className="text-center py-20 text-zinc-500 italic text-sm border border-dashed border-white/10 rounded-xl bg-black/20">
+                  {t("settings.no_items", "Aucun élément trouvé.")}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {items.map((item) => (
+                    <div key={item.id} className="flex flex-col gap-3 p-4 rounded-xl bg-black/40 border border-white/5 relative group hover:border-fuchsia-500/30 transition-all shadow-xl">
+                      <div className="flex-grow">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-fuchsia-400/50 mb-1">
+                          {t("settings.name_fr", "Français")}
+                        </div>
+                        <div className="text-sm font-bold text-white mb-3 truncate">{item.name.fr}</div>
+                        
+                        <div className="text-[10px] font-black uppercase tracking-widest text-gaming-gold/50 mb-1">
+                          {t("settings.name_en", "Anglais")}
+                        </div>
+                        <div className="text-sm font-bold text-zinc-300 truncate">{item.name.en}</div>
+                      </div>
+                      
+                      <div className="flex gap-2 mt-2 pt-3 border-t border-white/5">
+                        <Button variant="ghost" size="sm" onClick={() => openEditModal(item)} className="flex-1 bg-white/5 hover:bg-fuchsia-500/20 text-zinc-300 hover:text-fuchsia-300 text-xs font-bold uppercase tracking-widest">
+                          <Pencil className="h-3.5 w-3.5 mr-2" /> {t("settings.edit_btn", "Éditer")}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)} className="flex-none bg-red-500/10 hover:bg-red-500/20 text-red-400 px-3">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -289,8 +401,8 @@ const Settings: React.FC = () => {
                 />
               </div>
 
-              {/* SÉLECTION DES BOSS (Sauf pour l'onglet Boss lui-même) */}
-              {activeTab !== "boss" && (
+              {/* SÉLECTION DES BOSS */}
+              {activeTab !== "boss" && activeTab !== "general" && (
                 <div className="pt-4 border-t border-white/5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-300 mb-3 block flex items-center justify-between">
                     {t("settings.linked_bosses", "Boss liés")}

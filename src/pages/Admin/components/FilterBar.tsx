@@ -10,7 +10,8 @@ const FilterBar = ({
   armes,
   armures,
   accessoires,
-  archbosses
+  archbosses,
+  isArchbossEnabled = true // Ajout de la prop
 }) => {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as "fr" | "en";
@@ -43,8 +44,12 @@ const FilterBar = ({
       color: "text-fuchsia-400", 
       border: "border-fuchsia-500/30",
       itemStyle: "text-white-100/90 hover:text-fuchsia-300 hover:border-fuchsia-500/40 bg-fuchsia-500/5"
-    },
-    { 
+    }
+  ];
+
+  // Ajout conditionnel de l'onglet Archboss
+  if (isArchbossEnabled) {
+    categories.push({ 
       id: "archboss", 
       label: t("filter.archbosses", "Archboss"), 
       icon: <Skull className="h-4 w-4" />, 
@@ -52,8 +57,8 @@ const FilterBar = ({
       color: "text-rose-500", 
       border: "border-rose-500/30",
       itemStyle: "text-white-100/90 hover:text-rose-300 hover:border-rose-500/40 bg-rose-500/5"
-    },
-  ];
+    });
+  }
 
   return (
     <div className="w-full space-y-4">

@@ -9,18 +9,20 @@ interface BossCountsProps {
     armes: [string, number][];
     armures: [string, number][];
     accessoires: [string, number][];
-    archbosses: [string, number][];
+    archbosses?: [string, number][];
   };
   selectedBoss: string | null;
   onBossClick: (boss: string) => void;
   onReset: () => void;
+  isArchbossEnabled?: boolean; // Ajout de la condition
 }
 
 const BossCounts: React.FC<BossCountsProps> = ({
   bossCounts,
   selectedBoss,
   onBossClick,
-  onReset
+  onReset,
+  isArchbossEnabled = true // Activé par défaut
 }) => {
   const { t } = useTranslation();
 
@@ -45,15 +47,19 @@ const BossCounts: React.FC<BossCountsProps> = ({
       color: "text-fuchsia-400", 
       icon: <Gem className="h-4 w-4" />,
       glow: "group-hover:shadow-[0_0_15px_rgba(217,70,239,0.3)]"
-    },
-    { 
+    }
+  ];
+
+  // On ajoute Archboss SEULEMENT s'il est activé
+  if (isArchbossEnabled && bossCounts.archbosses) {
+    sections.push({ 
       label: t("boss_counts.archbosses", "Archboss"), 
       data: bossCounts.archbosses, 
       color: "text-rose-500", 
       icon: <Skull className="h-4 w-4" />,
       glow: "group-hover:shadow-[0_0_15px_rgba(244,63,94,0.3)]"
-    },
-  ];
+    });
+  }
 
   return (
     <div className="space-y-6 mb-10">
@@ -79,8 +85,8 @@ const BossCounts: React.FC<BossCountsProps> = ({
         )}
       </div>
 
-      {/* MODIFIÉ : grid-cols-4 sur grand écran pour aligner les 4 blocs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Grille adaptative (3 ou 4 colonnes) */}
+      <div className={cn("grid gap-6", isArchbossEnabled ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1 md:grid-cols-3")}>
         {sections.map((section) => (
           <div
             key={section.label}

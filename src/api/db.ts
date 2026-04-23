@@ -413,3 +413,17 @@ export async function saveItemWithBosses(
 
   return true;
 }
+
+// --- GESTION DES FONCTIONNALITÉS (FEATURE FLAGS) ---
+
+export async function getAppSettings() {
+  const { data, error } = await supabase.from("app_settings").select("*");
+  if (error) throw error;
+  return data;
+}
+
+export async function toggleSetting(id: string, is_active: boolean) {
+  const { error } = await supabase.from("app_settings").update({ is_active }).eq("id", id);
+  if (error) throw error;
+  return true;
+}

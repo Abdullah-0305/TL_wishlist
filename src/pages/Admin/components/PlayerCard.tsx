@@ -7,7 +7,8 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import NewAdminModal from "./NewAdminModal";
 
-const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPlayers }) => {
+// Ajout de la prop isArchbossEnabled
+const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPlayers, isArchbossEnabled = true }) => {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as "fr" | "en";
   
@@ -190,13 +191,17 @@ const PlayerCard = ({ player, openModal, openRemoveModal, togglePresence, loadPl
             openModal={openModal} 
             openRemoveModal={openRemoveModal} 
           />
-          <ItemRow 
-            type="archboss" 
-            player={player} 
-            dateDemand={player.date_demand_archboss} 
-            openModal={openModal} 
-            openRemoveModal={openRemoveModal} 
-          />
+          
+          {/* AFFICHAGE CONDITIONNEL DE L'ARCHBOSS */}
+          {isArchbossEnabled && (
+            <ItemRow 
+              type="archboss" 
+              player={player} 
+              dateDemand={player.date_demand_archboss} 
+              openModal={openModal} 
+              openRemoveModal={openRemoveModal} 
+            />
+          )}
 
           {formattedDate && (
             <div className="mt-4 pt-3 border-t border-fuchsia-500/20 flex items-center justify-between text-[10px] text-fuchsia-200/60 font-bold uppercase tracking-widest">
