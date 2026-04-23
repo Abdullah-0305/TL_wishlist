@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Swords, Shield, UserCog, LogOut } from "lucide-react";
+import { Swords, Shield, UserCog, LogOut, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslation } from "react-i18next";
@@ -16,6 +16,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     !user && { path: "/login", label: t('nav.login'), icon: Shield },
     user && { path: "/wishlist", label: t('nav.wishlist'), icon: Swords },
     user?.is_admin && { path: "/admin", label: t('nav.admin'), icon: UserCog },
+    user?.is_admin && { path: "/settings", label: t('nav.settings'), icon: Settings },
   ].filter(Boolean) as any[];
 
   return (

@@ -11,7 +11,7 @@ import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import LanguageSwitcher from "./components/LanguageSwitcher";
 import Maintenance from "./pages/Maintenance";
-
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +50,7 @@ const AppContent = () => {
         <Route path="/login" element={user ? <Navigate to="/wishlist" replace /> : <Login />} />
         <Route path="/wishlist" element={user ? <Wishlist /> : <Navigate to="/login" replace />} />
         <Route path="/admin" element={user ? <Admin /> : <Navigate to="/login" replace />} />
+        <Route path="/settings" element={user ? <Settings /> : <Navigate to="/login" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <LanguageSwitcher />

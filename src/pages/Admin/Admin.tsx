@@ -325,7 +325,7 @@ const Admin: React.FC = () => {
                 : "border-transparent text-zinc-400 hover:bg-fuchsia-500/10 hover:text-fuchsia-300"
             }`}
           >
-            <Swords className="h-4 w-4" /> Actif
+            <Swords className="h-4 w-4" /> {t("admin.actifs")}
           </Button>
 
           <Button
@@ -337,7 +337,7 @@ const Admin: React.FC = () => {
                 : "border-transparent text-zinc-400 hover:bg-amber-500/10 hover:text-amber-300"
             }`}
           >
-            <RefreshCw className="h-4 w-4" /> Demandes
+            <RefreshCw className="h-4 w-4" /> {t("admin.requests")}
             {pendingCount > 0 && (
               <span className="absolute -top-2 -right-2 flex h-5 w-5 z-20">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -357,7 +357,7 @@ const Admin: React.FC = () => {
                 : "border-transparent text-zinc-400 hover:bg-cyan-500/10 hover:text-cyan-300"
             }`}
           >
-            <ScrollText className="h-4 w-4" /> Historique
+            <ScrollText className="h-4 w-4" /> {t("admin.history")}
           </Button>
         </div>
 

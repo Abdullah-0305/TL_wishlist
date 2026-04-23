@@ -13,7 +13,8 @@ i18n
                 "login": "Connexion",
                 "wishlist": "Wishlist",
                 "admin": "Admin",
-                "logout": "Se déconnecter"
+                "logout": "Se déconnecter",
+                "settings": "Paramètres"
             },
             "wishlist": {
                 "loading": "Chargement...",
@@ -37,10 +38,12 @@ i18n
                 "weapons_title": "Armes",
                 "armors_title": "Armures",
                 "accessories_title": "Accessoires",
+                "archboss_title": "Archboss",
                 "select_role": "Sélectionner un rôle",
                 "select_weapon": "Choisir une arme",
                 "select_armor": "Choisir une armure",
                 "select_accessory": "Choisir un accessoire",
+                "select_archboss": "Choisir un item",
                 "none": "— Aucune —",
                 "already_chosen": "Déjà choisi",
                 "already_looted": "Tu as déjà loot cet item",
@@ -51,7 +54,15 @@ i18n
                 "cancel": "Annuler",
                 "confirm": "Confirmer",
                 "save_success": "Wishlist sauvegardée !",
-                "save_error": "Erreur lors de la sauvegarde"
+                "save_error": "Erreur lors de la sauvegarde",
+                "change_request_sent": "Demande de changement envoyée à la Co-Gestion !",
+                "change_request_error": "Erreur lors de l'envoi de la demande. Vous avez peut-être déjà une demande en cours.",
+                "change_request_title": "Demande d'échange",
+                "change_request_desc": "Sélectionner l'objet que vous souhaitez en remplacement. La Co-Gestion validera votre demande.",
+                "new_item_label": "Nouvel objet souhaité :",
+                "select_new_item": "Choisir...",
+                "send_request": "Envoyer"
+
             },
             "login": {
                 "title": "Bienvenue sur Akatsushi",
@@ -91,7 +102,10 @@ i18n
                 "set_all_presence": "Tout mettre Présent",
                 "add_player": "Ajouter un joueur",
                 "none": "Aucun(e)",
-                "reset_all_confirm": "Tous les items ont été réinitialisés !"
+                "reset_all_confirm": "Tous les items ont été réinitialisés !",
+                "actifs": "Actifs",
+                "requests": "Demandes",
+                "history": "Historique"
             },
             "filter": {
                 "label": "Filtrer",
@@ -188,6 +202,40 @@ i18n
                 "success": "{{name}} a été promu Co-Gestionnaire avec succès. Bienvenue dans l'équipe !",
                 "error_mismatch": "Le nom saisi ne correspond pas. Veuillez réessayer.",
                 "error_api": "Impossible de promouvoir le joueur. Erreur serveur ou RLS."
+            },
+            "settings": {
+                "title": "Paramètres",
+                "tab_boss": "Boss",
+                "tab_weapons": "Armes",
+                "tab_armors": "Armures",
+                "tab_accessories": "Accessoires",
+                "tab_archboss": "Archboss",
+                "tab_roles": "Rôles",
+                "error_load": "Erreur lors du chargement des données",
+                "error_names_required": "Les deux noms (FR et EN) sont obligatoires.",
+                "saving": "Sauvegarde en cours...",
+                "save_success": "Sauvegarde réussie !",
+                "save_error": "Erreur lors de la sauvegarde",
+                "delete_confirm": "Êtes-vous sûr de vouloir supprimer cet élément ? Cela peut casser les wishlists des joueurs liés !",
+                "deleting": "Suppression en cours...",
+                "delete_success": "Suppression réussie !",
+                "delete_error": "Erreur lors de la suppression",
+                "subtitle": "Gestion des listes de la base de données",
+                "list_of": "Liste des",
+                "add_btn": "Ajouter",
+                "edit_btn": "Modifier",
+                "delete_btn": "Supprimer",
+                "no_items": "Aucun élément trouvé",
+                "name_fr": "Francais",
+                "name_en": "Anglais",
+                "modal_edit_title": "Modifier l'élément",
+                "modal_add_title": "Ajouter un nouvel élément",
+                "category": "Catégorie",
+                "linked_bosses": "Boss liés",
+                "single_choice": "(1 choix)",
+                "multi_choice": "(Choix multiples)",
+                "cancel": "Annuler",
+                "save": "Sauvegarder"
             }
         }
       },
@@ -197,7 +245,8 @@ i18n
                 "login": "Login",
                 "wishlist": "Wishlist",
                 "admin": "Admin",
-                "logout": "Logout"
+                "logout": "Logout",
+                "settings": "Settings"
             },
             "wishlist": {
                 "loading": "Loading...",
@@ -221,10 +270,12 @@ i18n
                 "weapons_title": "Weapons",
                 "armors_title": "Armors",
                 "accessories_title": "Accessories",
+                "archboss_title": "Archboss",
                 "select_role": "Select a role",
                 "select_weapon": "Choose a weapon",
                 "select_armor": "Choose an armor",
                 "select_accessory": "Choose an accessory",
+                "select_archboss": "Choose an item",
                 "none": "— None —",
                 "already_chosen": "Already chosen",
                 "already_looted": "You have already looted this item",
@@ -235,7 +286,14 @@ i18n
                 "cancel": "Cancel",
                 "confirm": "Confirm",
                 "save_success": "Wishlist saved!",
-                "save_error": "Error during save"
+                "save_error": "Error during save",
+                "change_request_sent": "Change request sent to Co-Management!",
+                "change_request_error": "Error sending change request. You may have already sent",
+                "change_request_title": "Change Request",
+                "change_request_desc": "Select the item you want to replace. Co-Management will validate your request.",
+                "new_item_label": "New item desired:",
+                "select_new_item": "Select...",
+                "send_request": "Send"
             },
             "login": {
                 "title": "Welcome to Akatsushi",
@@ -275,7 +333,10 @@ i18n
                 "set_all_presence": "Set All Present",
                 "add_player": "Add Player",
                 "none": "None",
-                "reset_all_confirm": "All items have been reset!"
+                "reset_all_confirm": "All items have been reset!",
+                "actifs": "Actives",
+                "requests": "Requests",
+                "history": "History"
             },
             "filter": {
                 "label": "Filter",
@@ -372,6 +433,40 @@ i18n
                 "success": "{{name}} has been successfully promoted to Co-Manager. Welcome to the team!",
                 "error_mismatch": "The name entered does not match. Please try again.",
                 "error_api": "Unable to promote the player. Server or RLS error."
+            },
+            "settings": {
+                "title": "Settings",
+                "tab_boss": "Boss",
+                "tab_weapons": "Weapons",
+                "tab_armors": "Armors",
+                "tab_accessories": "Accessories",
+                "tab_archboss": "Archboss",
+                "tab_roles": "Roles",
+                "error_load": "Error loading data",
+                "error_names_required": "Both French and English names are required.",
+                "saving": "Saving...",
+                "save_success": "Save successful!",
+                "save_error": "Error during save",
+                "delete_confirm": "Are you sure you want to delete this item? This may break the wishlists of linked players!",              
+                "deleting": "Deleting...",
+                "delete_success": "Delete successful!",
+                "delete_error": "Error during delete",
+                "subtitle": "Database Management",
+                "list_of": "List of",
+                "add_btn": "Add",
+                "edit_btn": "Edit",
+                "delete_btn": "Delete",
+                "no_items": "No items found",
+                "name_fr": "French",
+                "name_en": "English",
+                "modal_edit_title": "Edit Item",
+                "modal_add_title": "Add New Item",
+                "category": "Category",
+                "linked_bosses": "Linked Bosses",
+                "single_choice": "(1 choice)",
+                "multi_choice": "(Multiple choices)",
+                "cancel": "Cancel",
+                "save": "Save"
             }
         }
       }
