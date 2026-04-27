@@ -174,7 +174,7 @@ const Wishlist = () => {
   };
 
   const submitChangeRequest = async () => {
-    if (!changeNewItem || changeNewItem === "null") {
+    if (!changeNewItem) {
       toast.error(t("wishlist.change_select_error", "Veuillez sélectionner un nouvel item."));
       return;
     }
@@ -182,15 +182,22 @@ const Wishlist = () => {
     try {
       if (!user?.id || !changeSlotType) return;
       
+      // --- LA CORRECTION EST ICI ---
+      // On transforme le texte "null" en vrai `null` pour Supabase.
+      // Si ce n'est pas "null", on le convertit en Nombre (si tes IDs sont des nombres dans ta DB)
+      // Si tes IDs sont du texte (UUID), enlève simplement le `Number()`
+      const idToSave = changeNewItem === "null" ? null : Number(changeNewItem);
+      
       await createChangeRequest({ 
         player_id: user.id, 
         item_type: changeSlotType, 
-        new_item_id: changeNewItem 
+        new_item_id: idToSave 
       });
       
       toast.success(t("wishlist.change_request_sent", "Votre demande de changement a été envoyée à la Co-Gestion !"));
       setChangeModalOpen(false);
     } catch (err) {
+      console.error("Erreur requête:", err);
       toast.error(t("wishlist.change_request_error", "Erreur lors de l'envoi de la demande. Vous avez peut-être déjà une demande en cours."));
     }
   };
@@ -454,6 +461,10 @@ const Wishlist = () => {
                   <SelectValue placeholder={t("wishlist.select_new_item", "Choisir...")} />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1e1333] border-gaming-gold/30 text-white max-h-[250px]">
+                  <SelectItem value="null" className="italic text-zinc-400 focus:bg-red-500/20 focus:text-red-300 cursor-pointer font-bold border-b border-white/5 mb-1 pb-2">
+                    🛑 {t("wishlist.change_to_none", "Ne rien mettre (Retirer l'item)")}
+                  </SelectItem>
+
                   {getChangeItemsList().map((item) => (
                     <SelectItem key={item.id} value={item.id.toString()} className="focus:bg-gaming-gold/20 cursor-pointer">
                       {getLocalizedName(item.name)}

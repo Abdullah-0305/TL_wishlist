@@ -207,7 +207,7 @@ export async function getLootHistory(limit = 100) {
 // GESTION DES DEMANDES DE CHANGEMENT (WISHLIST)
 // ---------------------------------------------
 
-// 1. Le joueur crée une demande
+// Le joueur crée une demande
 export async function createChangeRequest(data: { player_id: string; item_type: string; new_item_id: string | number }) {
   const { error } = await supabase
     .from("change_requests")
@@ -217,7 +217,7 @@ export async function createChangeRequest(data: { player_id: string; item_type: 
   return true;
 }
 
-// 2. L'Admin récupère les demandes en attente
+// L'Admin récupère les demandes en attente
 export async function getPendingChangeRequests() {
   const { data, error } = await supabase
     .from("change_requests")
@@ -236,13 +236,12 @@ export async function getPendingChangeRequests() {
   return data;
 }
 
-// 3. L'Admin valide ou refuse la demande
 export async function resolveChangeRequest(
   requestId: string,
   status: "approved" | "rejected",
   playerId?: string,
   itemType?: string,
-  newItemId?: string | number
+  newItemId?: string | number | null // On précise qu'on accepte le null
 ) {
   // A. On change le statut de la requête
   const { error: reqError } = await supabase
@@ -253,20 +252,35 @@ export async function resolveChangeRequest(
   if (reqError) throw reqError;
 
   // B. Si c'est approuvé, on met à jour la wishlist du joueur !
-  if (status === "approved" && playerId && itemType && newItemId) {
+  // On remplace 'newItemId' par 'newItemId !== undefined' pour que le null passe la vérification
+  if (status === "approved" && playerId && itemType && newItemId !== undefined) {
     const { data: player } = await getPlayerById(playerId);
     const wishlist = player?.wishlist || {};
 
-    // On remplace l'ancien item par le nouveau et on reset la date de demande
+    // Petite variable pour savoir si le joueur a demandé à vider la case
+    const isClearing = newItemId === null || newItemId === "null";
+
+    // On remplace l'ancien item par le nouveau (ou null) et on gère les dates et les loots
     if (itemType === "arme") {
-      wishlist.id_arme = isNaN(Number(newItemId)) ? newItemId : Number(newItemId);
-      wishlist.date_demand_arme = new Date();
-    } else if (itemType === "armure") {
-      wishlist.id_armure = isNaN(Number(newItemId)) ? newItemId : Number(newItemId);
-      wishlist.date_demand_armure = new Date();
-    } else if (itemType === "accessoire") {
-      wishlist.id_accessoire = isNaN(Number(newItemId)) ? newItemId : Number(newItemId);
-      wishlist.date_demand_accessoire = new Date();
+      wishlist.id_arme = isClearing ? null : (isNaN(Number(newItemId)) ? newItemId : Number(newItemId));
+      wishlist.date_demand_arme = isClearing ? null : new Date();
+      wishlist.has_looted_arme = false; // On reset le loot par précaution
+    } 
+    else if (itemType === "armure") {
+      wishlist.id_armure = isClearing ? null : (isNaN(Number(newItemId)) ? newItemId : Number(newItemId));
+      wishlist.date_demand_armure = isClearing ? null : new Date();
+      wishlist.has_looted_armure = false;
+    } 
+    else if (itemType === "accessoire") {
+      wishlist.id_accessoire = isClearing ? null : (isNaN(Number(newItemId)) ? newItemId : Number(newItemId));
+      wishlist.date_demand_accessoire = isClearing ? null : new Date();
+      wishlist.has_looted_accessoires = false; 
+    }
+    // Ajout de l'Archboss pour qu'il fonctionne lui aussi !
+    else if (itemType === "archboss") {
+      wishlist.id_archboss = isClearing ? null : (isNaN(Number(newItemId)) ? newItemId : Number(newItemId));
+      wishlist.date_demand_archboss = isClearing ? null : new Date();
+      wishlist.has_looted_archboss = false;
     }
 
     const { error: playerError } = await updatePlayer(playerId, { wishlist });
