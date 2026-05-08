@@ -49,8 +49,8 @@ const AppContent = () => {
         />
         <Route path="/login" element={user ? <Navigate to="/wishlist" replace /> : <Login />} />
         <Route path="/wishlist" element={user ? <Wishlist /> : <Navigate to="/login" replace />} />
-        <Route path="/admin" element={user.is_admin ? <Admin /> : <Navigate to="/login" replace />} />
-        <Route path="/settings" element={user.is_admin ? <Settings /> : <Navigate to="/login" replace />} />
+        <Route path="/admin" element={user?.is_admin ? <Admin /> : <Navigate to="/login" replace />} />
+        <Route path="/settings" element={user?.is_admin ? <Settings /> : <Navigate to="/login" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <LanguageSwitcher />
