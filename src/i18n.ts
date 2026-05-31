@@ -13,6 +13,7 @@ i18n
                 "login": "Connexion",
                 "wishlist": "Wishlist",
                 "admin": "Admin",
+                "stats": "Stats",
                 "logout": "Se déconnecter",
                 "settings": "Paramètres"
             },
@@ -245,6 +246,7 @@ i18n
                 "login": "Login",
                 "wishlist": "Wishlist",
                 "admin": "Admin",
+                "stats": "Stats",
                 "logout": "Logout",
                 "settings": "Settings"
             },

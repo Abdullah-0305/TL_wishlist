@@ -12,6 +12,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import LanguageSwitcher from "./components/LanguageSwitcher";
 import Maintenance from "./pages/Maintenance";
 import Settings from "./pages/Settings";
+import Stats from "./pages/Stats";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ const AppContent = () => {
         <Route path="/login" element={user ? <Navigate to="/wishlist" replace /> : <Login />} />
         <Route path="/wishlist" element={user ? <Wishlist /> : <Navigate to="/login" replace />} />
         <Route path="/admin" element={user?.is_admin ? <Admin /> : <Navigate to="/login" replace />} />
+        <Route path="/stats" element={user?.is_admin ? <Stats/> : <Navigate to="/login" replace />}/>
         <Route path="/settings" element={user?.is_admin ? <Settings /> : <Navigate to="/login" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
