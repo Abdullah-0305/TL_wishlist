@@ -49,7 +49,7 @@ serve(async (req) => {
         specName: s.specName || "",
       }));
 
-    return new Response(JSON.stringify({ signups: validSignups }), {
+    return new Response(JSON.stringify({ signups: validSignups, title: data.title }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

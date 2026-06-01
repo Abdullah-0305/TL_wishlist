@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { UserCheck, UserX, UserMinus, Search, RefreshCw, Scan, UserCog, UserPlus } from "lucide-react";
+import { UserCheck, UserX, UserMinus, Search, RefreshCw, Scan, UserCog, UserPlus, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -31,67 +31,46 @@ interface StatRecord {
 
 const ABSENT_RH_CLASSES = ["Absence", "Tentative", "Bench", "Late"];
 
+// 🧠 Fonction extraite pour calculer les listes de manière synchrone pendant le scan
+const calculateLists = (signups: RHSignup[], players: Player[]) => {
+  const onlinePlayers = players.filter(p => p.is_online);
+  const offlinePlayers = players.filter(p => !p.is_online);
+  
+  const expectedSignups = signups.filter(rh => !ABSENT_RH_CLASSES.includes(rh.className));
+  const declaredAbsents = signups.filter(rh => ABSENT_RH_CLASSES.includes(rh.className));
+
+  return {
+    presentRegistered: expectedSignups.filter(rh => onlinePlayers.some(p => p.discord_id === rh.userid)),
+    presentUnregisteredOrAbsent: onlinePlayers.filter(p => !expectedSignups.some(rh => rh.userid === p.discord_id)),
+    absentRegisteredAbsent: declaredAbsents.filter(rh => !onlinePlayers.some(p => p.discord_id === rh.userid)),
+    unregistered: offlinePlayers.filter(p => !signups.some(rh => rh.userid === p.discord_id)),
+    absentRegisteredPresent: expectedSignups.filter(rh => !onlinePlayers.some(p => p.discord_id === rh.userid))
+  };
+};
+
 const Attendance = () => {
   const { t } = useTranslation();
 
   const [loading, setLoading] = useState(false);
   const [lastScan, setLastScan] = useState<Date | null>(null);
   const [eventId, setEventId] = useState("");
+  const [eventName, setEventName] = useState("");
 
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [rhSignups, setRhSignups] = useState<RHSignup[]>([]);
 
-  // 🧠 Tri optimisé des 5 listes demandées
-  const { 
-    presentRegistered, 
-    presentUnregisteredOrAbsent, 
-    absentRegisteredAbsent, 
-    unregistered, 
-    absentRegisteredPresent 
-  } = useMemo(() => {
-    
-    const onlinePlayers = allPlayers.filter(p => p.is_online);
-    const offlinePlayers = allPlayers.filter(p => !p.is_online);
-    
-    const expectedSignups = rhSignups.filter(rh => !ABSENT_RH_CLASSES.includes(rh.className));
-    const declaredAbsents = rhSignups.filter(rh => ABSENT_RH_CLASSES.includes(rh.className));
-
-    return {
-      // 1. Joueurs présents et inscrits en présent
-      presentRegistered: expectedSignups.filter(rh => 
-        onlinePlayers.some(p => p.discord_id === rh.userid)
-      ),
-      
-      // 2. Joueurs présents et non-inscrits ou absents
-      presentUnregisteredOrAbsent: onlinePlayers.filter(p => 
-        !expectedSignups.some(rh => rh.userid === p.discord_id)
-      ),
-      
-      // 3. Joueurs non présents et inscrits en absents
-      absentRegisteredAbsent: declaredAbsents.filter(rh => 
-        !onlinePlayers.some(p => p.discord_id === rh.userid)
-      ),
-      
-      // 4. Joueurs non-inscrits (Roster hors-ligne qui n'a pas réagi au RH)
-      unregistered: offlinePlayers.filter(p => 
-        !rhSignups.some(rh => rh.userid === p.discord_id)
-      ),
-
-      // 5. Joueurs absents inscrit en présent (No-shows)
-      absentRegisteredPresent: expectedSignups.filter(rh => 
-        !onlinePlayers.some(p => p.discord_id === rh.userid)
-      )
-    };
-  }, [rhSignups, allPlayers]);
+  // L'affichage de l'UI utilise toujours le useMemo, mais basé sur la fonction isolée
+  const lists = useMemo(() => calculateLists(rhSignups, allPlayers), [rhSignups, allPlayers]);
+  const { presentRegistered, presentUnregisteredOrAbsent, absentRegisteredAbsent, unregistered, absentRegisteredPresent } = lists;
 
   const fetchEventIdWithSupabase = async (): Promise<string> => {
     const { data, error } = await supabase.functions.invoke("event-raid-helper");
     if (error) throw error;
     
-    if (typeof data === "string" || !data.signups || data.signups.length === 0) {
-      throw new Error("Aucun événement valide trouvé");
+    if (data === "Aucun événement dans l'intervalle de 30 minutes.") {
+      throw new Error("Aucun événement trouvé");
     }
-    return data.signups[0].event_id;
+    return data;
   };
 
   const getRHSignups = async (id: string) => {
@@ -99,38 +78,62 @@ const Attendance = () => {
       body: { eventId: id },
     }); 
     if (error) throw error;
-    return data.signups;
+    
+    // On retourne le titre ET les inscrits pour l'utiliser tout de suite dans la fonction parente
+    return { signups: data.signups, title: data.title };
   };
 
-  const saveStatsToDatabase = async (id: string, eventName: string) => {
-    try {
-      const formatPlayer = (p: any): StatRecord => ({
-        id: p.userid || p.id,
-        name: p.name || p.discord_name,
-        discord_id: p.userid || p.discord_id,
-        class: p.className,
-        spec: p.specName,
-      });
+  const saveStatsToDatabase = async (id: string, currentEventName: string, calculatedLists: any) => {
+  try {
+    const formatPlayer = (p: any): StatRecord => ({
+      id: p.userid || p.id,
+      name: p.name || p.discord_name,
+      discord_id: p.userid || p.discord_id,
+      class: p.className,
+      spec: p.specName,
+    });
 
-      const { error } = await supabase.from("raid_events_stats").insert({
-        event_id: id,
-        event_name: eventName,
-        event_date: new Date().toISOString().split("T")[0],
-        scan_timestamp: new Date().toISOString(),
-        players_present_registered: presentRegistered.map(formatPlayer),
-        players_present_unregistered_or_absent: presentUnregisteredOrAbsent.map(formatPlayer),
-        players_absent_registered_absent: absentRegisteredAbsent.map(formatPlayer),
-        players_unregistered: unregistered.map(formatPlayer),
-        players_absent_registered_present: absentRegisteredPresent.map(formatPlayer),
-      });
+    const payload = {
+      event_id: id,
+      event_name: currentEventName,
+      event_date: new Date().toISOString().split("T")[0],
+      scan_timestamp: new Date().toISOString(),
+      players_present_registered: calculatedLists.presentRegistered.map(formatPlayer),
+      players_present_unregistered_or_absent: calculatedLists.presentUnregisteredOrAbsent.map(formatPlayer),
+      players_absent_registered_absent: calculatedLists.absentRegisteredAbsent.map(formatPlayer),
+      players_unregistered: calculatedLists.unregistered.map(formatPlayer),
+      players_absent_registered_present: calculatedLists.absentRegisteredPresent.map(formatPlayer),
+    };
+
+    // 1. On cherche s'il existe déjà des stats pour cet event_id
+    const { data: existingEvents, error: fetchError } = await supabase
+      .from("raid_events_stats")
+      .select("id")
+      .eq("event_id", id);
+
+    if (fetchError) throw fetchError;
+
+    if (existingEvents && existingEvents.length > 0) {
+      // 2. Si oui, on écrase les données existantes en ciblant l'event_id
+      const { error } = await supabase
+        .from("raid_events_stats")
+        .delete()
+        .eq("event_id", id);
 
       if (error) throw error;
-      toast.success("Stats enregistrées avec succès !");
-    } catch (error) {
-      console.error(error);
-      toast.error("Erreur lors de l'enregistrement des stats");
+      toast.success("Stats mises à jour avec succès !");
     }
-  };
+    const { error } = await supabase
+      .from("raid_events_stats")
+      .insert(payload);
+
+    if (error) throw error;
+    toast.success("Stats enregistrées avec succès !");
+  } catch (error: any) {
+    console.error("Erreur de base de données :", error);
+    toast.error(error.message || "Erreur lors de l'enregistrement des stats");
+  }
+};
 
   const handleScan = async () => {
     setLoading(true);
@@ -138,20 +141,29 @@ const Attendance = () => {
 
     try {
       const currentEventId = await fetchEventIdWithSupabase();
-      setEventId(currentEventId);
-
-      const signups = await getRHSignups(currentEventId);
-      setRhSignups(signups);
-
-      // ⚠️ Changement ici : On récupère tout le roster pour trouver les non-inscrits
+      
+      // 1. Récupération synchrone des données
+      const { signups, title } = await getRHSignups(currentEventId);
+      
       const { data: dbPlayers, error: dbError } = await supabase
         .from("players")
         .select("*");
-
       if (dbError) throw dbError;
-      setAllPlayers(dbPlayers || []);
+
+      // 2. Calcul des listes immédiatement avec les nouvelles données
+      const freshPlayers = dbPlayers || [];
+      const freshLists = calculateLists(signups, freshPlayers);
+
+      // 3. Sauvegarde dans la DB avec les données à jour
+      await saveStatsToDatabase(currentEventId, title, freshLists);
       
+      // 4. Seulement à la fin, on met à jour les états React pour l'interface
+      setEventId(currentEventId);
+      setEventName(title);
+      setRhSignups(signups);
+      setAllPlayers(freshPlayers);
       setLastScan(new Date());
+
       toast.success("Scan terminé avec succès !", { id: toastId });
     } catch (error: any) {
       console.error(error);
@@ -160,6 +172,17 @@ const Attendance = () => {
       setLoading(false);
     }
   };
+
+  const wakeUpBot = async () => {
+      const toastId = toast.loading("Réveil du bot en cours (peut prendre jusqu'à 60s)...");
+      try {
+        await fetch("https://wishlist-bot-lyy7.onrender.com/", { mode: 'no-cors' });
+        toast.success("Signal envoyé ! Attendez quelques secondes puis faites le Scan.", { id: toastId, duration: 5000 });
+      } catch (error) {
+        console.error("Erreur Wake Bot:", error);
+        toast.error("Erreur lors de l'appel au bot.", { id: toastId });
+      }
+    };
 
   const StatCard = ({ title, count, icon: Icon, color, bg }: any) => (
     <div className={cn("p-4 rounded-2xl border shadow-lg relative overflow-hidden group transition-all", bg, color)}>
@@ -216,23 +239,37 @@ const Attendance = () => {
             </p>
           </div>
 
-          <Button
-            onClick={handleScan}
-            disabled={loading}
-            className="h-12 px-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? <RefreshCw className="h-5 w-5 animate-spin" /> : <><Scan className="h-5 w-5 mr-2" /> Scan</>}
-          </Button>
+          {/* Conteneur Flex pour aligner les boutons côte à côte */}
+          <div className="flex items-center gap-4">
+            <Button 
+              onClick={wakeUpBot}
+              variant="outline"
+              className="bg-purple-500/10 text-purple-400 border border-purple-500/30 hover:bg-purple-500 hover:text-white font-bold h-12 px-4 flex lg:flex-none gap-2 transition-all"
+            >
+              <Zap className="h-4 w-4" /> Réveiller Bot
+            </Button>
+
+            <Button
+              onClick={handleScan}
+              disabled={loading}
+              className="h-12 px-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? <RefreshCw className="h-5 w-5 animate-spin" /> : <><Scan className="h-5 w-5 mr-2" /> Scan</>}
+            </Button>
+          </div>
         </div>
 
         {/* RÉSULTATS */}
         {lastScan && (
           <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
             {/* INFO SCAN */}
-            <div className="flex flex-wrap gap-4 text-xs text-zinc-500 font-bold uppercase tracking-widest">
-              <span className="bg-white/5 px-3 py-1 rounded-full">Dernier scan : {lastScan.toLocaleTimeString()}</span>
-              <span className="bg-white/5 px-3 py-1 rounded-full">Event ID : {eventId}</span>
-              <span className="bg-white/5 px-3 py-1 rounded-full">Inscrits RH : {rhSignups.length} | DB : {allPlayers.length}</span>
+            <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-500 font-bold uppercase tracking-widest">
+              <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-full">
+                {eventName}
+              </span>
+              <span className="bg-white/5 px-3 py-1.5 rounded-full">Dernier scan : {lastScan.toLocaleTimeString()}</span>
+              <span className="bg-white/5 px-3 py-1.5 rounded-full">Event ID : {eventId}</span>
+              <span className="bg-white/5 px-3 py-1.5 rounded-full">Inscrits RH : {rhSignups.length} | DB : {allPlayers.length}</span>
             </div>
 
             {/* STATS CARDS (5 colonnes) */}
