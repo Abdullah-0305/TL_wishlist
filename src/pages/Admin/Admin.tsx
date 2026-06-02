@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslation } from "react-i18next";
-import { Users, RotateCcw, Mic, ScrollText, RefreshCw, Swords, Zap, Skull } from "lucide-react"; // <-- Ajout de Skull ici
+import { Users, RotateCcw, Mic, ScrollText, RefreshCw, Swords, Zap } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 import Header from "./components/Header";
