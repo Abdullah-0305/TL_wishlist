@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { UserCheck, UserX, UserMinus, RefreshCw, Scan, UserCog, UserPlus, Zap } from "lucide-react";
+import { UserCheck, UserX, UserMinus, RefreshCw, Scan, UserCog, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -135,6 +135,7 @@ const Scanner = () => {
     const toastId = toast.loading("Scan en cours...");
 
     try {
+      await wakeUpBot()
       const currentEventId = await fetchEventIdWithSupabase();
       const { signups, title } = await getRHSignups(currentEventId);
       
@@ -161,14 +162,23 @@ const Scanner = () => {
     }
   };
 
-  const wakeUpBot = async () => {
-    const toastId = toast.loading("Réveil du bot en cours (peut prendre jusqu'à 60s)...");
+  const wakeUpBot = async () => {    
     try {
-      await fetch("https://wishlist-bot-lyy7.onrender.com/", { mode: 'no-cors' });
-      toast.success("Signal envoyé ! Attendez quelques secondes puis faites le Scan.", { id: toastId, duration: 5000 });
+      // ⚠️ On retire mode: 'no-cors' pour pouvoir lire le contenu
+      const response = await fetch("https://wishlist-bot-lyy7.onrender.com/");
+      
+      // Si le serveur sur Render est en cours de réveil, il peut renvoyer une erreur 502/503
+      if (!response.ok) {
+        throw new Error("Le serveur est en train de démarrer");
+      }
+
+      const text = await response.text(); // On récupère le texte brut de la page
+
     } catch (error) {
       console.error("Erreur Wake Bot:", error);
-      toast.error("Erreur lors de l'appel au bot.", { id: toastId });
+      // Sur Render, un bot endormi va souvent faire un "timeout" ou bloquer la requête
+      // Le fait d'avoir essayé de le ping va le réveiller de toute façon
+      toast.info("Le bot était en veille. Réveil en cours (attendez ~60s).");
     }
   };
 
@@ -216,14 +226,6 @@ const Scanner = () => {
     <div className="space-y-8">
       {/* BOUTONS D'ACTION */}
       <div className="flex items-center justify-end gap-4">
-        <Button 
-          onClick={wakeUpBot}
-          variant="outline"
-          className="bg-purple-500/10 text-purple-400 border border-purple-500/30 hover:bg-purple-500 hover:text-white font-bold h-12 px-4 flex lg:flex-none gap-2 transition-all"
-        >
-          <Zap className="h-4 w-4" /> Réveiller Bot
-        </Button>
-
         <Button
           onClick={handleScan}
           disabled={loading}
