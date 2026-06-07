@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { UserCheck, UserX, UserMinus, RefreshCw, Scan, UserCog, UserPlus } from "lucide-react";
+import { UserCheck, UserX, UserMinus, RefreshCw, Scan, UserCog, UserPlus, BellRing} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -58,6 +58,8 @@ const Scanner = () => {
   const lists = useMemo(() => calculateLists(rhSignups, allPlayers), [rhSignups, allPlayers]);
   const { presentRegistered, presentUnregisteredOrAbsent, absentRegisteredAbsent, unregistered, absentRegisteredPresent } = lists;
 
+  const [channelId, setChannelId] = useState("");
+
   const fetchEventIdWithSupabase = async (): Promise<string> => {
     const { data, error } = await supabase.functions.invoke("event-raid-helper");
     if (error) throw error;
@@ -74,7 +76,8 @@ const Scanner = () => {
     }); 
     if (error) throw error;
     
-    return { signups: data.signups, title: data.title };
+    // On récupère le channelId fourni par l'API RH
+    return { signups: data.signups, title: data.title, channelId: data.channelId };
   };
 
   const saveStatsToDatabase = async (id: string, currentEventName: string, calculatedLists: any) => {
@@ -137,7 +140,7 @@ const Scanner = () => {
     try {
       await wakeUpBot()
       const currentEventId = await fetchEventIdWithSupabase();
-      const { signups, title } = await getRHSignups(currentEventId);
+      const { signups, title, channelId : fetchedChannelId } = await getRHSignups(currentEventId);
       
       const { data: dbPlayers, error: dbError } = await supabase.from("players").select("*");
       if (dbError) throw dbError;
@@ -149,6 +152,7 @@ const Scanner = () => {
       
       setEventId(currentEventId);
       setEventName(title);
+      setChannelId(fetchedChannelId);
       setRhSignups(signups);
       setAllPlayers(freshPlayers);
       setLastScan(new Date());
@@ -159,6 +163,40 @@ const Scanner = () => {
       toast.error(error.message || "Erreur lors du scan", { id: toastId });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePingUnregistered = async () => {
+    if (unregistered.length === 0) {
+      toast.error("Aucun joueur à ping !");
+      return;
+    }
+    if (!channelId) {
+      toast.error("ID du salon introuvable pour cet événement.");
+      return;
+    }
+
+    const toastId = toast.loading("Envoi du ping Discord...");
+    
+    try {
+      const response = await fetch("https://wishlist-bot-lyy7.onrender.com/ping-unregistered", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channelId: channelId,
+          eventName: eventName,
+          playerIds: unregistered.map(p => p.discord_id) // On n'envoie que les IDs
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) throw new Error(result.error || "Erreur inconnue");
+
+      toast.success("Rappel envoyé dans le salon !", { id: toastId });
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Impossible de joindre le bot.", { id: toastId });
     }
   };
 
@@ -226,6 +264,19 @@ const Scanner = () => {
     <div className="space-y-8">
       {/* BOUTONS D'ACTION */}
       <div className="flex items-center justify-end gap-4">
+
+        {unregistered.length > 0 && channelId && (
+          <div className="mt-4 p-1 rounded-xl bg-gradient-to-r from-[#5865F2]/20 to-indigo-600/20 border border-[#5865F2]/30 shadow-lg">
+            <Button 
+              onClick={handlePingUnregistered}
+              className="w-full h-11 bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-black uppercase tracking-widest transition-all duration-300 shadow-[0_0_15px_rgba(88,101,242,0.4)] hover:shadow-[0_0_25px_rgba(88,101,242,0.6)] flex items-center justify-center gap-2 group"
+            >
+              <BellRing className="h-4 w-4 group-hover:animate-pulse" />
+              Ping les retardataires ({unregistered.length})
+            </Button>
+          </div>
+        )}
+        
         <Button
           onClick={handleScan}
           disabled={loading}

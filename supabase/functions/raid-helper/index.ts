@@ -41,7 +41,6 @@ serve(async (req) => {
 
     // Filtrer et formater les inscrits valides
     const validSignups = data.signUps
-      .filter((s: any) => s.className !== "Absence" && s.className !== "Tentative")
       .map((s: any) => ({
         userid: s.userId,
         name: s.name,
@@ -49,7 +48,7 @@ serve(async (req) => {
         specName: s.specName || "",
       }));
 
-    return new Response(JSON.stringify({ signups: validSignups, title: data.title }), {
+    return new Response(JSON.stringify({ signups: validSignups, title: data.title, channelId: data.channelId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
