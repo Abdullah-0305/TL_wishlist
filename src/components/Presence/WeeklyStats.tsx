@@ -116,7 +116,6 @@ const WeeklyStats = () => {
       });
     });
     
-    console.log(map)
     return map;
   }, [filteredScans, players]);
 
