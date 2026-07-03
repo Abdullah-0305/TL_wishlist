@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Calendar, Clock, Users, ChevronDown, ChevronUp, UserCheck, UserX, UserMinus, UserCog, UserPlus, Trash2, Edit2, Save, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -50,6 +50,32 @@ const ScanHistory = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftScan, setDraftScan] = useState<RaidEventStat | null>(null);
   const [dragOverList, setDragOverList] = useState<ListKey | null>(null);
+
+  // Semaine (lundi -> dimanche)
+  const [weekStart, setWeekStart] = useState<Date>(() => {
+    const now = new Date();
+    const day = now.getDay(); // 0 = dimanche
+    const diff = day === 0 ? -6 : 1 - day; // régler au lundi
+    const monday = new Date(now);
+    monday.setHours(0,0,0,0);
+    monday.setDate(now.getDate() + diff);
+    return monday;
+  });
+
+  const weekEnd = useMemo(() => {
+    const d = new Date(weekStart);
+    d.setHours(23,59,59,999);
+    d.setDate(weekStart.getDate() + 6);
+    return d;
+  }, [weekStart]);
+
+  const prevWeek = () => { const d = new Date(weekStart); d.setDate(d.getDate() - 7); setWeekStart(d); };
+  const nextWeek = () => { const d = new Date(weekStart); d.setDate(d.getDate() + 7); setWeekStart(d); };
+
+  const filteredScans = useMemo(() => scans.filter(s => {
+    const ts = new Date(s.scan_timestamp);
+    return ts >= weekStart && ts <= weekEnd;
+  }), [scans, weekStart, weekEnd]);
 
   const fetchScans = async () => {
     setLoading(true);
@@ -193,7 +219,16 @@ const ScanHistory = () => {
       </h2>
 
       <div className="space-y-4">
-        {scans.map((scan) => {
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="px-3 py-1 rounded-md bg-white/5 hover:bg-white/10 text-sm" onClick={prevWeek}>Précédente</Button>
+            <div className="text-sm font-bold px-3">{weekStart.toLocaleDateString('fr-FR')} → {new Date(weekEnd).toLocaleDateString('fr-FR')}</div>
+            <Button variant="ghost" size="sm" className="px-3 py-1 rounded-md bg-white/5 hover:bg-white/10 text-sm" onClick={nextWeek}>Suivante</Button>
+          </div>
+          <div className="text-xs text-zinc-400">{filteredScans.length} événements cette semaine</div>
+        </div>
+
+        {filteredScans.map((scan) => {
           const isExpanded = expandedId === scan.id;
           const isEditing = editingId === scan.id;
           
@@ -219,8 +254,8 @@ const ScanHistory = () => {
                     {displayScan.event_name}
                   </h3>
                   <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400 font-medium tracking-wide">
-                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(displayScan.event_date).toLocaleDateString()}</span>
-                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date(displayScan.scan_timestamp).toLocaleTimeString()}</span>
+                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(displayScan.event_date).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}</span>
+                     <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date(displayScan.scan_timestamp).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', second: '2-digit' })} (Europe/Paris)</span>
                   </div>
                 </div>
 
