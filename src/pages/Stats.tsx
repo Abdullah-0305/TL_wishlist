@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Search, ScrollText} from "lucide-react";
 import Scanner from "../components/Presence/Scanner";
 import History from "../components/Presence/History";
+import WeeklyStats from "../components/Presence/WeeklyStats";
 import { Button } from "@/components/ui/button";
 
 import { useTranslation } from "react-i18next";
@@ -10,7 +11,7 @@ export default function AttendancePage() {
 
   const { t, i18n } = useTranslation();
 
-    const [activeTab, setActiveTab] = useState<"scan" | "history">("scan");
+    const [activeTab, setActiveTab] = useState<"scan" | "history" | "stats">("scan");
     const [pendingCount, setPendingCount] = useState(0);
 
 
@@ -56,6 +57,17 @@ export default function AttendancePage() {
           >
             <ScrollText className="h-4 w-4" /> {t("admin.history")}
           </Button>
+
+          <Button
+            variant="ghost"
+            onClick={() => setActiveTab("stats")}
+            className={`flex-1 md:flex-none gap-2 px-5 h-10 transition-all border ${
+              activeTab === "stats" 
+                ? "bg-purple-500/15 text-purple-300 border-purple-500/30 shadow-[0_0_15px_rgba(139,92,246,0.12)] hover:bg-purple-500/25 hover:text-purple-200" 
+                : "border-transparent text-zinc-400 hover:bg-purple-500/10 hover:text-purple-300"
+            }`}>
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line></svg> Stats
+          </Button>
           </div>
         </div>
 
@@ -70,6 +82,14 @@ export default function AttendancePage() {
           (activeTab === "history") && (
             <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
               <History />
+            </div>
+          )
+        }
+
+        {
+          (activeTab === "stats") && (
+            <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
+              <WeeklyStats />
             </div>
           )
         }
