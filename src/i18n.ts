@@ -1,4 +1,4 @@
-import i18n from 'i18next';
+qimport i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
@@ -29,7 +29,7 @@ i18n
                 "rule_2_title": "2. La Wishlist",
                 "rule_2_desc": "Vous devez inscrire vos souhaits : Classe, Arme/Armure/Accessoire voulu.",
                 "rule_3_title": "3. Attribution et Équité",
-                "rule_3_desc": "Priorité aux joueurs <1>présents, anciens et actifs.</1> Une fois un loot obtenu, un délai de 7 jours est requis avant de pouvoir en recevoir un autre.",
+                "rule_3_desc": "Priorité aux joueurs <1>présents, anciens et actifs.</1>",
                 "rule_4_title": "4. Distribution & Vocal Obligatoire",
                 "rule_4_desc": "Le vocal Discord est obligatoire lors des distributions de loots.",
                 "change_title": "📩 Changement de Wishlist",
@@ -262,7 +262,7 @@ i18n
                 "rule_2_title": "2. The Wishlist",
                 "rule_2_desc": "You must register your wishes: Class, Weapon/Armor/Accessory wanted.",
                 "rule_3_title": "3. Allocation & Fairness",
-                "rule_3_desc": "Priority to <1>present, veteran, and active players.</1> Once loot is obtained, a 7-day cooldown is required before receiving another.",
+                "rule_3_desc": "Priority to <1>present, veteran, and active players.</1>",
                 "rule_4_title": "4. Distribution & Mandatory Voice Chat",
                 "rule_4_desc": "Discord voice chat is mandatory during loot distributions.",
                 "change_title": "📩 Wishlist Changes",
